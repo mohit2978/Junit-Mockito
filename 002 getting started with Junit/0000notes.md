@@ -406,6 +406,118 @@ assertThrows-->Assert that an executable throws an exception of expected type
 
 ![alt text](image-32.png)
 
+assertTimeoutPreemptively -->Assert that an executable completes
+before given timeout is exceeded
+
+![alt text](image-33.png)
+
+![alt text](image-34.png)
+
+## Run tests in Order
+
+In general
+
+• Order should not be a factor in unit tests
+
+• There should be no dependency between tests
+
+• All tests should pass regardless of the order in which they are run
+
+However , there are some uses cases when you want to control the order
+
+• You want tests to appear in alphabetical order for reporting purposes
+
+• Sharing reports with project management, QA team etc...
+
+• Group tests based on functionality or requirements
+
+@TestMethodOrder-->Configures the order/sort algorithm for the test methods
+
+![alt text](image-35.png)
+
+![alt text](image-36.png)
+
+![alt text](image-37.png)
+
+![alt text](image-38.png)
+
+### @Order
+
+Manually specify the order with an int number
+
+- Order with lowest number has highest priority
+- Negative numbers are allowed
+
+![alt text](image-39.png)
+
+
+![alt text](image-40.png)
+
+
+If duplicate Order than again ordering by Junit by its own algo!!
+
+## Code Coverage
+
+• Code coverage measures how many methods/lines are called by your tests
+
+• Coverage is represented as a percentage: 50% coverage etc ...
+
+• In general, the higher the coverage the better
+
+• However, 100% is not always attainable
+
+• On most teams, 70%-80% is acceptable
+
+• Code coverage is only a metric and can be easily tricked with bad tests
+
+• Use the metric as simply one data point in your software process
+
+IntelliJ Support for Code Coverage
+
+-  IntelliJ has built-in support for code coverage
+
+-  Can generate coverage reports in the IDE
+
+-  Also can generate HTML output for viewing in web browser
+
+• If you are not using IntelliJ, don't worry
+
+• Later, I'll show you how to do the same using Maven commands
+
+• No IDE is required ... run Maven from command-line
+
+![alt text](image-41.png)
+
+![alt text](image-42.png)
+
+![alt text](image-43.png)
+
+### With maven code coverage
+
+![alt text](image-44.png)
+
+![alt text](image-45.png)
+
+![alt text](image-46.png)
+
+![alt text](image-47.png)
+
+![alt text](image-48.png)
+
+![alt text](image-49.png)
+
+
+![alt text](image-50.png)
+
+
+![alt text](image-51.png)
+
+![alt text](image-52.png)
+
+![alt text](image-53.png)
+
+![alt text](image-54.png)
+
 
 
 
