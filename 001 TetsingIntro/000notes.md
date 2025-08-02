@@ -10,6 +10,22 @@
 
 We provide test cases and can check output of each test-case!!
 
+## Benefits of Unit Testing
+
+- Automated tests
+
+- Better code design
+
+- Fewer bugs and higher reliability
+
+- Increases confidence for code refactoring ... did I break anything??
+
+- Basic requirement for
+
+    -  DevOps and Build Pipelines
+
+    - Continuous Integration / Continuous Deployment (CI/CD)
+
 ![alt text](image.png)
 
 ## Integration Testing
@@ -40,13 +56,16 @@ We provide test cases and can check output of each test-case!!
 
     • Minimize dependencies on external components
 
+In Intellij
+
+![alt text](image-1.png)
+
+In Eclipse
+
+![alt text](image-2.png)
 
 
-
-
-
-
-
+LEt us start with Junit now
 
 
 
