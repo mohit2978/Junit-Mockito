@@ -490,6 +490,10 @@ IntelliJ Support for Code Coverage
 
 ![alt text](image-42.png)
 
+![alt text](image-55.png)
+
+We need to add test for this multiply to increase coverage!!
+
 ![alt text](image-43.png)
 
 ### With maven code coverage
@@ -518,21 +522,46 @@ IntelliJ Support for Code Coverage
 
 ![alt text](image-54.png)
 
+## Conditional Tests
+
+### Use Cases
+
+• Don't run a test because the method to test is broken ... and we are waiting on dev team to fix it
+
+• A test should only run for a specific version of Java (Java 18) or range of versions (13 - 18)
+
+• A test should only run on a given operating system: MS Windows, Mac, Linux
+
+• A test should only run if specific environment variables or system properties are set
+
+### Why not just comment the code???
+
+• We could do that ... but then the tests will not be displayed in reports
+
+• Easy to forget about broken tests
+
+• Manual process to enable/disable tests for a given operating system etc ...
+
+• Let's report the tests ... so that management and QA are aware of the issue
+
+`@Disabled`--> Disable a test method
+
+`@EnabledOnOs`--> Enable test when running on a given operating system
+
+Annotations can be applied at the class level or method level
+
+![alt text](image-56.png)
 
 
+`@EnabledOnJre`--> Enable test for a given Java version
 
+`@EnabledForJreRange`--> Enable test for a given Java version range
 
+![alt text](image-57.png)
 
+`@EnabledIfSystemProperty`--> Enable test based on system property
 
+`@EnabledIfEnvironmentVariable`--> Enable test based on environment variable
 
-
-
-
-
-
-
-
-
-
-
+![alt text](image-58.png)
 
