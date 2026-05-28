@@ -336,8 +336,259 @@ class GoodTest {
 ![alt text](image-2.png)
 
 
+Let me explain `@Execution` clearly.
 
-Perfect summary slide! Let me expand each point with real code examples so it's crystal clear.
+---
+
+### What is `@Execution`?
+
+It's a JUnit 5 annotation that controls **how tests run** — sequentially or in parallel — at the **class or method level**.
+
+```java
+@Execution(ExecutionMode.CONCURRENT)  // run in parallel
+@Execution(ExecutionMode.SAME_THREAD) // run sequentially
+```
+
+---
+
+### Two modes
+
+#### `ExecutionMode.CONCURRENT` — run in parallel
+
+```java
+@Execution(ExecutionMode.CONCURRENT)
+class OrderServiceTest {
+
+    @Test
+    void test1() {
+        Thread.sleep(1000);
+        System.out.println("test1 - " + Thread.currentThread().getName());
+    }
+
+    @Test
+    void test2() {
+        Thread.sleep(1000);
+        System.out.println("test2 - " + Thread.currentThread().getName());
+    }
+
+    @Test
+    void test3() {
+        Thread.sleep(1000);
+        System.out.println("test3 - " + Thread.currentThread().getName());
+    }
+}
+
+// Output:
+// test1 - ForkJoinPool-1-worker-1   ← different threads!
+// test2 - ForkJoinPool-1-worker-2   ← running simultaneously
+// test3 - ForkJoinPool-1-worker-3   ← all at same time
+// Total time: ~1 second (not 3!) ✅
+```
+
+#### `ExecutionMode.SAME_THREAD` — run sequentially
+
+```java
+@Execution(ExecutionMode.SAME_THREAD)
+class OrderServiceTest {
+
+    @Test
+    void test1() {
+        System.out.println("test1 - " + Thread.currentThread().getName());
+    }
+
+    @Test
+    void test2() {
+        System.out.println("test2 - " + Thread.currentThread().getName());
+    }
+
+    @Test
+    void test3() {
+        System.out.println("test3 - " + Thread.currentThread().getName());
+    }
+}
+
+// Output:
+// test1 - main   ← same thread!
+// test2 - main   ← one after another
+// test3 - main   ← sequential
+// Total time: ~3 seconds
+```
+
+---
+
+### IMPORTANT — prerequisite to make it work
+
+`@Execution` alone does NOTHING without enabling parallel in properties first:
+
+```properties
+# /src/test/resources/junit-platform.properties
+
+# This MUST be true — otherwise @Execution is ignored!
+junit.jupiter.execution.parallel.enabled = true
+junit.jupiter.execution.parallel.mode.default = same_thread
+junit.jupiter.execution.parallel.config.strategy = dynamic
+junit.jupiter.execution.parallel.config.dynamic.factor = 2
+```
+
+```
+parallel.enabled = false
+    └── @Execution(CONCURRENT) → IGNORED — still runs sequentially
+
+parallel.enabled = true
+    └── @Execution(CONCURRENT) → WORKS — runs in parallel ✅
+```
+
+---
+
+### Using it at different levels
+
+#### On the whole CLASS — all methods run in parallel
+
+```java
+@Execution(ExecutionMode.CONCURRENT)  // ← applies to ALL methods
+class UserServiceTest {
+
+    @Test void test1() { ... }  // parallel ✅
+    @Test void test2() { ... }  // parallel ✅
+    @Test void test3() { ... }  // parallel ✅
+}
+```
+
+#### On a specific METHOD — only that method runs in parallel
+
+```java
+class MixedTest {
+
+    @Test
+    @Execution(ExecutionMode.CONCURRENT)   // this one parallel
+    void fastTest() {
+        // runs in its own thread ✅
+    }
+
+    @Test
+    @Execution(ExecutionMode.SAME_THREAD)  // this one sequential
+    void sensitiveTest() {
+        // always runs on same thread 🔒
+    }
+
+    @Test  // no annotation — follows class/global default
+    void normalTest() { ... }
+}
+```
+
+---
+
+### Real world use case — mix parallel and sequential
+
+```java
+// Global config: parallel enabled, default = same_thread
+// (in junit-platform.properties)
+
+@Execution(ExecutionMode.CONCURRENT)   // fast, isolated tests → parallel
+class ProductServiceTest {
+
+    @Test
+    void shouldCalculatePrice() { ... }  // parallel ✅
+
+    @Test
+    void shouldApplyDiscount() { ... }   // parallel ✅
+
+    @Test
+    void shouldCheckInventory() { ... }  // parallel ✅
+}
+
+
+@Execution(ExecutionMode.SAME_THREAD)  // DB tests → sequential
+class DatabaseTest {
+
+    @Test
+    void shouldSaveUser() { ... }    // sequential 🔒
+
+    @Test
+    void shouldDeleteUser() { ... }  // sequential 🔒
+    // Can't run in parallel — would conflict in DB!
+}
+```
+
+---
+
+### Thread safety check before using CONCURRENT
+
+```java
+// ❌ NOT safe for CONCURRENT — shared mutable static state
+@Execution(ExecutionMode.CONCURRENT)
+class UnsafeTest {
+
+    static int counter = 0;  // shared across threads — DANGER!
+
+    @Test void test1() { counter++; }  // race condition ❌
+    @Test void test2() { counter++; }  // race condition ❌
+}
+
+
+// ✅ SAFE for CONCURRENT — each test is fully independent
+@Execution(ExecutionMode.CONCURRENT)
+class SafeTest {
+
+    // No shared state — each test creates its own objects
+    @Test
+    void test1() {
+        User user = new User("Alice", 20);  // local variable
+        assertThat(user.isAdult()).isTrue(); // ✅ always safe
+    }
+
+    @Test
+    void test2() {
+        User user = new User("Bob", 15);    // local variable
+        assertThat(user.isAdult()).isFalse();// ✅ always safe
+    }
+}
+```
+
+---
+
+### `@Execution` vs `junit-platform.properties` — when to use which
+
+```
+junit-platform.properties
+    → sets the DEFAULT for ALL tests globally
+    → one setting affects everything
+
+@Execution annotation
+    → overrides the default for SPECIFIC class or method
+    → fine-grained control
+    → takes priority over properties file
+
+
+Example:
+properties file  → mode.default = same_thread  (all tests sequential by default)
+@Execution(CONCURRENT) on ClassA               → ClassA runs parallel  (override!)
+@Execution(SAME_THREAD) on ClassB              → ClassB runs sequential (follows default)
+no annotation on ClassC                        → ClassC runs sequential (follows default)
+```
+
+---
+
+### Summary
+
+| | `CONCURRENT` | `SAME_THREAD` |
+|---|---|---|
+| Runs on | Multiple threads | Single thread |
+| Speed | Faster | Slower |
+| Safe for | Stateless, isolated tests | Stateful, DB, ordered tests |
+| Prerequisite | `parallel.enabled=true` | Nothing needed |
+| Use when | Tests are independent | Tests share state or DB |
+
+---
+
+### Bottom line
+
+> `@Execution(ExecutionMode.CONCURRENT)` tells JUnit — **"run this class or method in parallel using multiple threads"**
+>
+> `@Execution(ExecutionMode.SAME_THREAD)` tells JUnit — **"always run this on a single thread, one after another"**
+>
+> It only works when `junit.jupiter.execution.parallel.enabled=true` is set in `junit-platform.properties` — without that, the annotation is completely ignored
+
 
 ---
 
@@ -1258,6 +1509,8 @@ junit.jupiter.execution.parallel.config.dynamic.factor = 1
 # junit.jupiter.execution.parallel.config.strategy = fixed
 # junit.jupiter.execution.parallel.config.fixed.parallelism = 8
 ```
+
+fixed means we tell how many threads it will use ,dynamic system will decide number of threads
 
 ---
 
