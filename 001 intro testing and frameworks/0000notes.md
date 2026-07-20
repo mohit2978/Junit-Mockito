@@ -10,12 +10,6 @@ We will be using Junit for unit testing and Mockito for mocking  and assert4j fo
 
 ![alt text](image.png)
 
-- The goal is to test it in isolation — meaning we need to test the functionality of `calculateMultiply()` only, **not** any other method's functionality.
-- In the example below, `calculateMultiply()` calls `NumberUtils` class's `multiply()` method, so we don't want to test `NumberUtils.multiply()`.
-- So we **mock** this call `numUtil.multiply(a, b)`.
-
-> **Mocking** means: instead of invoking the real method, we tell the test framework — "when this method is called, just return this predefined value without executing the actual logic."
-
 ```java
 public class Calculator {
     private NumberUtils numUtil;
@@ -36,6 +30,14 @@ public class NumberUtils {
     }
 }
 ```
+
+- The goal is to test it in isolation — meaning we need to test the functionality of `calculateMultiply()` only, **not** any other method's functionality.
+- In the example above, `calculateMultiply()` calls `NumberUtils` class's `multiply()` method, so we don't want to test `NumberUtils.multiply()`.
+- So we **mock** this call `numUtil.multiply(a, b)`.
+
+> **Mocking** means: instead of invoking the real method, we tell the test framework — "when this method is called, just return this predefined value without executing the actual logic."
+
+
 
 Mock here means when we call `numUtils.multiply(2,4)` return `8`.
 
@@ -102,6 +104,41 @@ Service A -> send mail
 ```
 - Validate that the email payload is built and sent correctly
 
+**Where the "real" boundary is drawn:**
+
+Integration tests still mock/stub the things *outside* the boundary you're testing (a 3rd-party payment gateway, another team's microservice), but let the *real* wiring run *inside* that boundary (real Spring context, real serialization, real SQL against a real database). That's the whole point — you're validating that the pieces you own actually talk to each other correctly, not just that each piece works in isolation.
+
+**Common tools/approaches:**
+
+- **Testcontainers** — spins up a real Postgres/MySQL/Kafka/Redis instance in a Docker container just for the test run, instead of mocking the DB or using an in-memory fake (H2). This catches real SQL dialect issues, real constraint violations, etc.
+- **Spring Boot test slices** — `@DataJpaTest` (loads only the JPA/repository layer), `@WebMvcTest` (loads only the web layer, with `MockMvc`), `@SpringBootTest` (loads the full application context) — each loads progressively more of the real wiring.
+- **WireMock / MockServer** — used to stub an *external* HTTP dependency (like a 3rd-party API) with realistic canned responses, so the integration test can still run without needing that external service to be up.
+- **Embedded Kafka** (`spring-kafka-test`) — runs an in-memory Kafka broker so you can test real publish/consume flows without a real Kafka cluster.
+
+**Trade-offs vs unit tests:**
+
+- Slower (spinning up a Spring context, a container, etc. takes seconds, not milliseconds).
+- More realistic — catches bugs that mocks would hide (e.g. a wrong column name, a misconfigured bean, a serialization mismatch).
+- Should be **fewer in number** than unit tests (this is the classic "testing pyramid" — lots of fast unit tests at the bottom, fewer integration tests in the middle, even fewer end-to-end/functional tests at the top).
+
+---
+
+### Why Not Just Do Integration Testing for Everything?
+
+It seems like it would cover everything, but a few practical problems show up once you actually try it:
+
+**Speed** — a unit test that calls a pure function runs in microseconds, since nothing but that function executes. An integration test spins up a Spring context, maybe a real database via Testcontainers, does real serialization — that's seconds per test, not microseconds. If you have 500 edge cases to check across your codebase (null handling, boundary values, exception paths), running each through a full integration test could turn a test suite that takes 10 seconds into one that takes 20+ minutes. That kills the fast feedback loop developers rely on while coding — nobody re-runs a 20-minute suite after every small change, so bugs get caught later, not while you're still looking at the code.
+
+**Debugging is harder** — when an integration test fails, the failure could be in your service logic, the DB mapping, a misconfigured bean, a network hiccup, or the test container itself. You have to dig through more layers to find the actual bug. A unit test failure points at one method — you know exactly what broke.
+
+**Flakiness** — integration tests are flakier by nature: timing issues, container startup races, shared state between tests, external dependencies being briefly unavailable. Flaky tests erode trust in the suite; people start ignoring "red" builds.
+
+**Combinatorial cost** — say a pricing function has 15 edge cases (negative amounts, zero, overflow, rounding rules, currency edge cases). Testing all 15 through a full integration path multiplies your slow, flaky test count by 15. Testing them as unit tests costs almost nothing extra.
+
+**Design feedback** — writing unit tests forces you to structure code with clear boundaries and injectable dependencies, because that's the only way to isolate a unit at all. If you only ever write integration tests, that pressure disappears, and code tends to get more tangled over time since nothing is pushing you toward decoupling it.
+
+So the usual answer isn't "unit tests instead of integration tests," it's both, in different proportions — lots of cheap, fast unit tests covering logic and edge cases, a smaller number of integration tests confirming the pieces actually wire together correctly, and just a handful of functional/E2E tests for the critical user journeys. Each layer catches a different class of bug, and the pyramid shape keeps the whole suite fast enough that people actually run it.
+
 ---
 
 ### Functional Testing
@@ -119,6 +156,41 @@ API -> Controller -> Service (invokes Real external service call (REST call)) ->
 All components involved in a feature need to be deployed on a stage/QA environment, and then testing is done:
 
 ![alt text](image-2.png)
+
+**This is essentially "black box" / acceptance testing:**
+
+You don't care *how* the feature is implemented internally — you only care whether, given a certain input/action, the system produces the expected business outcome. This is the same level at which a QA engineer or a business stakeholder would validate a feature, and it's often written as **acceptance criteria** ("Given a logged-in user with items in their cart, when they click checkout with a valid card, then an order should be created and a confirmation email sent").
+
+**Common tools:**
+
+- **API-level functional tests** — RestAssured, Postman/Newman, or plain HTTP clients hitting real deployed endpoints, asserting on status codes, response bodies, and side effects (was the DB row created? was the event published?).
+- **UI-level functional tests** — Selenium, Playwright, or Cypress driving a real browser against the deployed frontend, simulating actual user clicks/typing.
+- **BDD-style frameworks** — Cucumber, JBehave — express these scenarios in Gherkin (`Given/When/Then`) so non-engineers can read and even help write them.
+
+**Trade-offs:**
+
+- **Slowest and most expensive** of the three types — a full feature flow (UI → API → DB → downstream services) can take seconds to minutes per scenario.
+- **Flakiest** — depends on network calls, timing, environment availability, test data state; a UI test can fail because a button rendered 200ms late, not because the feature is actually broken.
+- **Fewest in number** — per the testing pyramid, you write functional/E2E tests only for your most critical user journeys (login, checkout, payment), not for every edge case — those edge cases belong in unit/integration tests, which are cheaper to run and easier to debug.
+- Usually run less frequently than unit/integration tests — e.g. on a nightly schedule or before a release, rather than on every single commit — because of how slow and resource-heavy they are.
+
+**Why not just write functional tests for everything?**
+
+It seems like it would cover everything, but a few practical problems show up once you actually try it:
+
+Speed is the big one. A unit test that calls a pure function runs in microseconds because nothing but that function executes. An integration test spins up a Spring context, maybe a real database via Testcontainers, does real serialization — that's seconds per test, not microseconds. If you have 500 edge cases to check across your codebase (null handling, boundary values, exception paths), running each through a full integration test could turn a test suite that takes 10 seconds into one that takes 20+ minutes. That kills the fast feedback loop developers rely on while coding — nobody re-runs a 20-minute suite after every small change, so bugs get caught later, not while you're still looking at the code.
+
+Debugging gets harder too. When an integration test fails, the failure could be in your service logic, the DB mapping, a misconfigured bean, a network hiccup, or the test container itself. You have to dig through more layers to find the actual bug. A unit test failure points at one method — you know exactly what broke.
+
+Integration tests are also flakier by nature — timing issues, container startup races, shared state between tests, external dependencies being briefly unavailable. Flaky tests erode trust in the suite; people start ignoring "red" builds.
+
+There's a combinatorial cost too. Say a pricing function has 15 edge cases (negative amounts, zero, overflow, rounding rules, currency edge cases). Testing all 15 through a full integration path multiplies your slow, flaky test count by 15. Testing them as unit tests costs almost nothing extra.
+
+And there's a design side-effect people don't always notice: writing unit tests forces you to structure code with clear boundaries and injectable dependencies, because that's the only way to isolate a unit at all. If you only ever write integration tests, that pressure disappears, and code tends to get more tangled over time since nothing is pushing you toward decoupling it.
+
+So the usual answer isn't "unit tests instead of integration tests," it's both, in different proportions — lots of cheap, fast unit tests covering logic and edge cases, a smaller number of integration tests confirming the pieces actually wire together correctly, and just a handful of functional/E2E tests for the critical user journeys. Each layer catches a different class of bug, and the pyramid shape keeps the whole suite fast enough that people actually run it.
+
+If your entire suite were functional tests, a single failure would be hard to localize (is the bug in the UI? the API? the DB layer? a downstream service?), the suite would take hours to run, and it would be constantly flaky due to environment issues — which is exactly why the pyramid favors many fast, isolated unit tests, a moderate number of integration tests, and just a handful of functional/E2E tests covering the critical paths.
 
 ---
 
