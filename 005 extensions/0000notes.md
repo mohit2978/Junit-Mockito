@@ -1,446 +1,552 @@
-**Extensions** are one of the most powerful features of JUnit 5. Let me explain everything in complete detail.
-
----
-
 ### What is an Extension?
 
-> An Extension is a way to **plug custom behavior into JUnit's test lifecycle** — without modifying your test classes.
+> In simple terms, it allows us to add **custom behavior** to tests, like:
 
-Think of it like a **plugin system** for your tests.
+- Enable or disable a test conditionally.
+- Add custom code before or after tests.
+- Intercept method calls for logging, etc.
 
-```
-Without Extension:        With Extension:
-────────────────          ──────────────────────────────
-@BeforeEach               Extension runs BEFORE @BeforeEach
-@Test          →          @Test
-@AfterEach                Extension runs AFTER @AfterEach
-                          Extension can SKIP test conditionally
-                          Extension can LOG every method call
-                          Extension can INJECT custom objects
-```
+Remember this diagram from the "Architecture" topic:
 
----
+![alt text](image.png)
 
-### How to use an Extension
+**Where do Extensions fit in:**
 
-```java
-// Register on a single class
-@ExtendWith(MockitoExtension.class)   // you already use this!
-class MyTest { ... }
+![alt text](image-1.png)
 
-// Register multiple extensions
-@ExtendWith({
-    MockitoExtension.class,
-    MyCustomExtension.class,
-    TimingExtension.class
-})
-class MyTest { ... }
+Let's first go through each extension, then at the end we'll see the dummy flow to visualize the **ORDERING** of JUnit5 extensions — that will clarify a lot of things.
 
-// Register globally — applies to ALL tests
-// In: /src/test/resources/junit-platform.properties
-junit.extensions.autodetection.enabled = true
-```
+Some of the extension types are:
+
+- Lifecycle Extensions
+- Parameter Resolver
+- Execution Condition
+- Test Execution Callbacks (Before and After)
+- Invocation Interceptor
+- Exception Handler
+- Instance Post Processor
 
 ---
 
-### Extension Points — what you can hook into
+### 1. Lifecycle Extensions
 
-JUnit 5 provides many interfaces your extension can implement:
+- Similar to the lifecycle annotations `@BeforeAll`, `@BeforeEach`, `@AfterAll`, `@AfterEach`.
+- Used to execute custom logic before/after test classes or methods.
+
+**Why do we need lifecycle extensions when we already have `@BeforeAll`/`@BeforeEach`/`@AfterAll`/`@AfterEach`?**
+
+> Those lifecycle-annotated methods are tied to a **single class**. Lifecycle **extensions** are **reusable across many test classes**.
+
+Our custom class implements the `BeforeAllCallback` extension interface:
 
 ```java
-// Each interface = one hook point in the test lifecycle
+public class BeforeAllLifecycleExtension implements BeforeAllCallback {
 
-BeforeAllCallback          // before @BeforeAll
-BeforeEachCallback         // before @BeforeEach
-BeforeTestExecutionCallback// just before @Test method
-TestExecutionExceptionHandler // when test throws exception
-AfterTestExecutionCallback // just after @Test method
-AfterEachCallback          // after @AfterEach
-AfterAllCallback           // after @AfterAll
-ExecutionCondition         // should this test run at all?
-ParameterResolver          // inject custom params into test
-TestInstancePostProcessor  // after test class instantiated
+    @Override
+    public void beforeAll(ExtensionContext context) {
+        System.out.println("Extension: Before all tests");
+    }
+}
 ```
+
+Our custom class implements the `AfterAllCallback` extension interface:
+
+```java
+public class AfterAllLifecycleExtension implements AfterAllCallback {
+
+    @Override
+    public void afterAll(ExtensionContext context) throws Exception {
+        System.out.println("Extension: After all tests");
+    }
+}
+```
+
+> The `ExtensionContext` object has all the info about: the **test class** (`getTestClass()`), the **test method** (`getTestMethod()`), **annotations** (`getElement()`), and the **test instance** (`getTestInstance()`).
+
+**Registering multiple lifecycle extensions (comma separated) within a test class:**
+
+```java
+@ExtendWith({BeforeAllLifecycleExtension.class, AfterAllLifecycleExtension.class})
+class MyServiceTest {
+
+    MyServiceTest() {
+        System.out.println("instance created");
+    }
+
+    @BeforeAll
+    public static void beforeAllMethod() {
+        System.out.println("inside beforeAll");
+    }
+
+    @BeforeEach
+    public void beforeEachMethod() {
+        System.out.println("inside beforeEach");
+    }
+
+    @Test
+    void testMethod1() {
+        System.out.println("inside test method");
+    }
+
+    @AfterEach
+    public void afterEachMethod() {
+        System.out.println("inside afterEach method");
+    }
+
+    @AfterAll
+    public static void afterAllMethod() {
+        System.out.println("inside afterAll method");
+    }
+}
+```
+
+Or we can write **one class** which implements all the lifecycle callback extension interfaces:
+
+```java
+public class LifecycleExtension implements BeforeAllCallback, AfterAllCallback,
+        BeforeEachCallback, AfterEachCallback {
+
+    @Override
+    public void beforeAll(ExtensionContext context) {
+        System.out.println("Extension: Before all tests");
+    }
+
+    @Override
+    public void afterAll(ExtensionContext context) throws Exception {
+        System.out.println("Extension: After all tests");
+    }
+
+    @Override
+    public void afterEach(ExtensionContext context) throws Exception {
+        System.out.println("Extension: After each tests");
+    }
+
+    @Override
+    public void beforeEach(ExtensionContext context) throws Exception {
+        System.out.println("Extension: Before each tests");
+    }
+}
+```
+
+```java
+@ExtendWith(LifecycleExtension.class)
+class MyServiceTest {
+    // same test class as above
+}
+```
+
+Output:
+
+![alt text](image-2.png)
 
 ---
 
-### Extension Use Case 1 — Add custom code BEFORE/AFTER tests (Timing)
+### 2. Parameter Resolver Extension
+
+> With this, we can **dynamically supply values** to method or constructor parameters within a test class.
 
 ```java
-// Custom extension — measures how long each test takes
-public class TimingExtension
-    implements BeforeTestExecutionCallback,
-               AfterTestExecutionCallback {
+public class Student {
+    String name;
+    int age;
 
-    private static final String START_TIME = "startTime";
+    public Student(String name, int age) {
+        this.name = name;
+        this.age = age;
+    }
+}
+```
+
+```java
+@ExtendWith(StudentParameterResolver.class)
+class MyServiceTest {
+
+    @Test
+    void testMethod1(Student student) {
+        System.out.println("Student name is: " + student.name);
+    }
+}
+```
+
+```java
+public class StudentParameterResolver implements ParameterResolver {
+
+    @Override
+    public boolean supportsParameter(ParameterContext parameterContext,
+                                      ExtensionContext extensionContext)
+            throws ParameterResolutionException {
+
+        return parameterContext.getParameter().getType() == Student.class;
+    }
+
+    @Override
+    public Object resolveParameter(ParameterContext parameterContext,
+                                    ExtensionContext extensionContext)
+            throws ParameterResolutionException {
+
+        return new Student("myName", 27);
+    }
+}
+```
+
+- `@ExtendWith(StudentParameterResolver.class)` **at class level** — applied to all methods and constructors.
+- Can also be used **at method level** — then applied to that particular method only.
+
+> `ParameterContext` has all the info about the particular parameter: its position in the parameter list, its type, and which method or constructor declared this variable.
+
+Output:
+
+![alt text](image-3.png)
+
+---
+
+### 3. Execution Condition Extension
+
+> Helps decide whether a test should be **enabled or disabled at runtime**, based on custom logic.
+
+**`junit-platform.properties`:**
+
+![alt text](image-4.png)
+
+```java
+public class ConditionalExecutionExtension implements ExecutionCondition {
+
+    @Override
+    public ConditionEvaluationResult evaluateExecutionCondition(ExtensionContext context) {
+
+        boolean featureEnabled = Boolean.parseBoolean(
+                context.getConfigurationParameter("xyz.feature.enabled").orElse("false")
+        );
+
+        return featureEnabled
+                ? ConditionEvaluationResult.enabled("feature enabled, test can run")
+                : ConditionEvaluationResult.disabled("feature disabled, test can not run");
+    }
+}
+```
+
+`@ExtendWith(ConditionalExecutionExtension.class)` used on top of a **method** — applies only to that method. Used on top of a **class** — applies to all methods of that class.
+
+```java
+class MyServiceTest {
+
+    @Test
+    @ExtendWith(ConditionalExecutionExtension.class)
+    void testMethod1() {
+        System.out.println("inside testMethod1");
+    }
+
+    @Test
+    void testMethod2() {
+        System.out.println("inside testMethod2");
+    }
+}
+```
+
+Output — only `testMethod1` is gated by the condition, so it's ignored while `testMethod2` runs normally:
+
+![alt text](image-5.png)
+
+Using the extension on top of the class instead:
+
+```java
+@ExtendWith(ConditionalExecutionExtension.class)
+class MyServiceTest {
+
+    @Test
+    void testMethod1() {
+        System.out.println("inside testMethod1");
+    }
+
+    @Test
+    void testMethod2() {
+        System.out.println("inside testMethod2");
+    }
+}
+```
+
+Output (feature is currently disabled — both tests fail the condition):
+
+![alt text](image-6.png)
+
+---
+
+### 4. Test Execution Callback Extension
+
+> Adds code logic **before or after** a test method executes.
+
+We could do the same with `@BeforeEach`/`@AfterEach`, but those carry setup logic — it's not a good idea to mix them with custom logic like recording execution time, etc.
+
+- **`BeforeTestExecutionCallback`** — runs just **before** the invocation of the test method (after `BeforeAllCallback`, `@BeforeAll`, `BeforeEachCallback`, `@BeforeEach`).
+- **`AfterTestExecutionCallback`** — runs just **after** the invocation of the test method (before `@AfterEach`, `AfterEachCallback`, `@AfterAll`, `AfterAllCallback`).
+
+```java
+public class TestExecutionExtension implements BeforeTestExecutionCallback,
+        AfterTestExecutionCallback {
 
     @Override
     public void beforeTestExecution(ExtensionContext context) {
-        // Runs just BEFORE each @Test method
-        long startTime = System.currentTimeMillis();
-
-        // Store in JUnit's context store
-        context.getStore(ExtensionContext.Namespace.GLOBAL)
-               .put(START_TIME, startTime);
-
-        System.out.println("▶ Starting: "
-            + context.getDisplayName());
+        System.out.println("Starting test at: " + Instant.now());
     }
 
     @Override
     public void afterTestExecution(ExtensionContext context) {
-        // Runs just AFTER each @Test method
-        long startTime = context.getStore(
-            ExtensionContext.Namespace.GLOBAL)
-            .get(START_TIME, Long.class);
+        System.out.println("Finished test at: " + Instant.now());
+    }
+}
+```
 
-        long duration = System.currentTimeMillis() - startTime;
+`@ExtendWith(TestExecutionExtension.class)` can also be used on top of a particular test method, if we don't want it applied to all test methods.
 
-        System.out.println("⏱ Finished: "
-            + context.getDisplayName()
-            + " in " + duration + "ms");
+```java
+@ExtendWith(TestExecutionExtension.class)
+class MyServiceTest {
 
-        // Flag slow tests
-        if (duration > 1000) {
-            System.out.println("⚠️ SLOW TEST DETECTED: "
-                + context.getDisplayName());
+    @BeforeEach
+    void beforeEachMethod() {
+        System.out.println("inside beforeEach method");
+    }
+
+    @Test
+    void testMethod1() {
+        System.out.println("inside testMethod1");
+    }
+
+    @AfterEach
+    void afterEachMethod() {
+        System.out.println("inside afterEach method");
+    }
+}
+```
+
+Output:
+
+![alt text](image-7.png)
+
+---
+
+### 5. Invocation Interceptor Extension
+
+> Helps **wrap the execution** of a test method — so we can write **pre-processing** and **post-processing** logic.
+
+```java
+public class CustomInvocationExtension implements InvocationInterceptor {
+
+    @Override
+    public void interceptTestMethod(Invocation<Void> invocation,
+                                     ReflectiveInvocationContext<Method> context,
+                                     ExtensionContext extensionContext) throws Throwable {
+
+        System.out.println("Pre-processing before test");
+
+        invocation.proceed(); // actual test runs here
+
+        System.out.println("Post-processing after test");
+    }
+}
+```
+
+**Used at class level:**
+
+```java
+@ExtendWith(CustomInvocationExtension.class)
+class MyServiceTest {
+
+    @Test
+    void testMethod1() {
+        System.out.println("inside testMethod1");
+    }
+}
+```
+
+![alt text](image-8.png)
+
+**Used at method level:**
+
+```java
+class MyServiceTest {
+
+    @Test
+    void testMethod1() {
+        System.out.println("inside testMethod1");
+    }
+
+    @Test
+    @ExtendWith(CustomInvocationExtension.class)
+    void testMethod2() {
+        System.out.println("inside testMethod2");
+    }
+}
+```
+
+![alt text](image-9.png)
+
+---
+
+### 6. Exception Handler Extension
+
+> Helps intercept exceptions thrown by a test method and handle them in our own way.
+
+```java
+public class CustomExceptionHandler implements TestExecutionExceptionHandler {
+
+    @Override
+    public void handleTestExecutionException(ExtensionContext context, Throwable throwable)
+            throws Throwable {
+
+        System.out.println("Exception occurred in test: " + context.getDisplayName());
+        System.out.println("Exception message: " + throwable.getMessage());
+
+        throw throwable;
+    }
+}
+```
+
+```java
+@ExtendWith(CustomExceptionHandler.class)
+class MyServiceTest {
+
+    @Test
+    void testMethod1() {
+        System.out.println("inside testMethod1");
+        int x = 1 / 0;
+    }
+}
+```
+
+Output:
+
+![alt text](image-10.png)
+
+---
+
+### 7. Instance Post Processor Extension
+
+> Helps **manipulate or initialize** the test instance **after it has been created** — it runs before any lifecycle method or extension runs, or even the test method itself.
+
+```java
+public class CustomPostProcessorExtension implements TestInstancePostProcessor {
+
+    @Override
+    public void postProcessTestInstance(Object testObj, ExtensionContext context) {
+        if (testObj instanceof MyServiceTest) {
+            MyServiceTest myServiceTestObj = (MyServiceTest) testObj;
+            myServiceTestObj.value = 100;
         }
     }
 }
 ```
 
+`@ExtendWith(CustomPostProcessorExtension.class)` can also be used at method level (works well for `PER_METHOD` lifecycle, since it creates a new instance for each test method).
+
 ```java
-// Using the extension
-@ExtendWith(TimingExtension.class)
-class OrderServiceTest {
+@ExtendWith(CustomPostProcessorExtension.class)
+public class MyServiceTest {
+
+    public int value;
 
     @Test
-    void shouldCalculateTotal() {
-        // TimingExtension fires BEFORE this
-        orderService.calculateTotal(items);
-        // TimingExtension fires AFTER this
+    void testMethod1() {
+        System.out.println("inside testMethod1: " + value);
     }
-    // Output:
-    // ▶ Starting: shouldCalculateTotal()
-    // ⏱ Finished: shouldCalculateTotal() in 45ms
 }
 ```
 
+Output:
+
+![alt text](image-11.png)
+
 ---
 
-### Extension Use Case 2 — Enable/Disable tests CONDITIONALLY
+### Dummy Flow of the Jupiter Engine — Ordering of JUnit5 Extensions
+
+![alt text](image-12.png)
 
 ```java
-// Custom extension — skip tests if external service is down
-public class ExternalServiceCondition implements ExecutionCondition {
+public void executeTestClass(Class<?> testClass) {
 
-    @Override
-    public ConditionEvaluationResult evaluateExecutionCondition(
-            ExtensionContext context) {
+    // 1. run BeforeAllCallbacks extension and @BeforeAll
+    for (BeforeAllCallback beforeAll : beforeAllCallbacks) {
+        beforeAll.beforeAll();
+    }
 
-        // Check if payment gateway is reachable
-        boolean isServiceUp = checkPaymentGateway();
-
-        if (isServiceUp) {
-            return ConditionEvaluationResult
-                .enabled("Payment gateway is UP — running test");
-        } else {
-            return ConditionEvaluationResult
-                .disabled("Payment gateway is DOWN — skipping test");
-            // test shows as SKIPPED ⏭️ not FAILED ❌
+    // execute each test method
+    for (Method testMethod : testClass.getDeclaredMethods()) {
+        if (isTestMethod()) {
+            Object testInstance = createTestInstance();
+            executeTestMethod();
         }
     }
 
-    private boolean checkPaymentGateway() {
-        try {
-            // ping the service
-            HttpClient.get("https://payment-gateway/health");
-            return true;
-        } catch (Exception e) {
-            return false;
+    // 10. AfterAllCallbacks extension and @AfterAll
+    for (AfterAllCallback afterAll : afterAllCallbacks) {
+        afterAll.afterAll();
+    }
+}
+
+public void executeTestMethod() {
+
+    try {
+        // 2. TestInstancePostProcessor
+        for (TestInstancePostProcessor pip : postProcessors) {
+            pip.postProcessTestInstance();
+        }
+
+        // 3. BeforeEachCallback extension and @BeforeEach
+        for (BeforeEachCallback beforeEach : beforeEachCallbacks) {
+            beforeEach.beforeEach(context);
+        }
+
+        // 4. ParameterResolvers extension will run
+        int argumentsCount = testMethod.getParameterCount();
+        for (int i = 0; i < argumentsCount; i++) {
+            Parameter param = testMethod.getParameters()[i];
+            for (ParameterResolver resolver : parameterResolvers) {
+                if (resolver.supportsParameter(param, context)) {
+                    arguments[i] = resolver.resolveParameter(param, context);
+                    break;
+                }
+            }
+        }
+
+        // 5. BeforeTestExecutionCallback execution will run
+        for (BeforeTestExecutionCallback beforeTest : beforeTestExecutionCallbacks) {
+            beforeTest.beforeTestExecution(context);
+        }
+
+        // 6. InvocationInterceptor wraps the test method
+        invocationInterceptor.interceptTestMethod(() -> {
+            testMethod.invoke(testInstance, arguments);
+        }, testMethod, context);
+
+        // 7. AfterTestExecutionCallback
+        for (AfterTestExecutionCallback afterTest : afterTestExecutionCallbacks) {
+            afterTest.afterTestExecution(context);
+        }
+
+    } catch (Throwable t) {
+        // 8. TestExecutionExceptionHandler
+        for (TestExecutionExceptionHandler handler : exceptionHandlers) {
+            handler.handleTestExecutionException(context, t);
+        }
+    } finally {
+        // 9. @AfterEach and AfterEachCallback extensions
+        for (AfterEachCallback afterEach : afterEachCallbacks) {
+            afterEach.afterEach(context);
         }
     }
 }
 ```
 
-```java
-// Using the conditional extension
-@ExtendWith(ExternalServiceCondition.class)
-class PaymentIntegrationTest {
+**Ordering summary:**
 
-    @Test
-    void shouldProcessPayment() {
-        // Only runs if payment gateway is UP
-        // Automatically SKIPPED if gateway is DOWN
-        paymentService.charge(1000.0);
-    }
-}
-```
-
-Built-in conditional extensions JUnit provides:
-
-```java
-@EnabledOnOs(OS.LINUX)           // only on Linux
-@EnabledOnOs(OS.WINDOWS)         // only on Windows
-@EnabledOnJre(JRE.JAVA_17)       // only on Java 17
-@EnabledIfSystemProperty(
-    named = "env",
-    matches = "prod")             // only if system property set
-@EnabledIfEnvironmentVariable(
-    named = "CI",
-    matches = "true")             // only in CI environment
-@Disabled("Not implemented yet") // always skip
-```
-
----
-
-### Extension Use Case 3 — Intercept method calls for LOGGING
-
-```java
-// Custom extension — logs every test method call
-public class LoggingExtension
-    implements BeforeAllCallback,
-               BeforeEachCallback,
-               AfterEachCallback,
-               AfterAllCallback,
-               TestExecutionExceptionHandler {
-
-    @Override
-    public void beforeAll(ExtensionContext context) {
-        System.out.println("\n════════════════════════════");
-        System.out.println("TEST CLASS: "
-            + context.getRequiredTestClass().getSimpleName());
-        System.out.println("════════════════════════════");
-    }
-
-    @Override
-    public void beforeEach(ExtensionContext context) {
-        System.out.println("\n  ┌─ TEST: "
-            + context.getDisplayName());
-        System.out.println("  │  Thread: "
-            + Thread.currentThread().getName());
-    }
-
-    @Override
-    public void afterEach(ExtensionContext context) {
-        // Check if test passed or failed
-        boolean failed = context.getExecutionException().isPresent();
-
-        if (failed) {
-            System.out.println("  └─ RESULT: ❌ FAILED");
-        } else {
-            System.out.println("  └─ RESULT: ✅ PASSED");
-        }
-    }
-
-    @Override
-    public void handleTestExecutionException(
-            ExtensionContext context,
-            Throwable throwable) throws Throwable {
-
-        // Intercept exception — log it — then rethrow
-        System.out.println("  │  EXCEPTION: "
-            + throwable.getClass().getSimpleName()
-            + " - " + throwable.getMessage());
-
-        throw throwable; // must rethrow or test won't fail!
-    }
-
-    @Override
-    public void afterAll(ExtensionContext context) {
-        System.out.println("\n════════════════════════════\n");
-    }
-}
-```
-
-```java
-// Output when tests run:
-// ════════════════════════════
-// TEST CLASS: OrderServiceTest
-// ════════════════════════════
-//
-//   ┌─ TEST: shouldCalculateTotal()
-//   │  Thread: main
-//   └─ RESULT: ✅ PASSED
-//
-//   ┌─ TEST: shouldThrowForInvalidInput()
-//   │  Thread: main
-//   │  EXCEPTION: IllegalArgumentException - Age cannot be negative
-//   └─ RESULT: ❌ FAILED
-//
-// ════════════════════════════
-```
-
----
-
-### Extension Use Case 4 — Inject custom parameters
-
-```java
-// Custom extension — injects a database connection into tests
-public class DatabaseExtension
-    implements ParameterResolver,
-               BeforeAllCallback,
-               AfterAllCallback {
-
-    private DatabaseConnection connection;
-
-    @Override
-    public void beforeAll(ExtensionContext context) {
-        // Create connection once for all tests
-        connection = DatabaseConnection.create("jdbc:h2:mem:test");
-        connection.runMigrations();
-    }
-
-    @Override
-    public boolean supportsParameter(
-            ParameterContext paramContext,
-            ExtensionContext extContext) {
-        // Tell JUnit: "I can provide DatabaseConnection params"
-        return paramContext.getParameter()
-                           .getType() == DatabaseConnection.class;
-    }
-
-    @Override
-    public Object resolveParameter(
-            ParameterContext paramContext,
-            ExtensionContext extContext) {
-        // Provide the actual value
-        return connection;
-    }
-
-    @Override
-    public void afterAll(ExtensionContext context) {
-        connection.close();
-    }
-}
-```
-
-```java
-// Using parameter injection extension
-@ExtendWith(DatabaseExtension.class)
-class DatabaseTest {
-
-    @Test
-    void shouldSaveUser(DatabaseConnection db) {
-        // ↑ JUnit injects this automatically via extension!
-        db.save(new User("Alice", 25));
-        assertThat(db.count("users")).isEqualTo(1);
-    }
-
-    @Test
-    void shouldFindUser(DatabaseConnection db) {
-        // same db injected here too
-        User found = db.findByName("Alice");
-        assertThat(found).isNotNull();
-    }
-}
-```
-
----
-
-### Real built-in extensions you already use
-
-```java
-// MockitoExtension — most common
-@ExtendWith(MockitoExtension.class)
-// Does:
-// → Processes @Mock annotations → creates mock objects
-// → Processes @InjectMocks      → injects mocks into class
-// → Processes @Captor           → creates argument captors
-// → Validates mock usage after each test
-
-// SpringExtension — for Spring Boot tests
-@ExtendWith(SpringExtension.class)
-// Does:
-// → Loads Spring ApplicationContext
-// → Processes @Autowired annotations
-// → Manages @Transactional rollback
-// (included automatically in @SpringBootTest)
-```
-
----
-
-### Create your OWN annotation with Extension
-
-```java
-// Step 1: Create custom annotation
-@Target(ElementType.TYPE)
-@Retention(RetentionPolicy.RUNTIME)
-@ExtendWith(TimingExtension.class)  // links annotation to extension
-public @interface Timed {
-    // custom annotation that activates TimingExtension
-}
-
-// Step 2: Use your annotation — cleaner than @ExtendWith!
-@Timed                              // ← your annotation
-class OrderServiceTest {
-
-    @Test
-    void shouldCalculateTotal() {
-        // TimingExtension automatically active ✅
-    }
-}
-
-// Much cleaner than:
-@ExtendWith(TimingExtension.class)  // verbose
-class OrderServiceTest { ... }
-```
-
----
-
-### Extension lifecycle — full picture
-
-```
-@BeforeAll
-    │
-    ├── BeforeAllCallback.beforeAll()       ← Extension hook
-    │
-@BeforeEach
-    │
-    ├── BeforeEachCallback.beforeEach()     ← Extension hook
-    │
-    ├── BeforeTestExecutionCallback         ← Extension hook
-    │
-@Test ← your test method runs here
-    │
-    ├── (if exception) ExceptionHandler     ← Extension hook
-    │
-    ├── AfterTestExecutionCallback          ← Extension hook
-    │
-@AfterEach
-    │
-    ├── AfterEachCallback.afterEach()       ← Extension hook
-    │
-@AfterAll
-    │
-    └── AfterAllCallback.afterAll()         ← Extension hook
-```
-
----
-
-### Summary table
-
-| Extension Interface | When it fires | Use for |
-|---|---|---|
-| `BeforeAllCallback` | Before `@BeforeAll` | Global setup, DB start |
-| `BeforeEachCallback` | Before `@BeforeEach` | Logging, setup |
-| `BeforeTestExecutionCallback` | Just before `@Test` | Timing start |
-| `ExecutionCondition` | Before test runs | Skip/enable conditionally |
-| `ParameterResolver` | Test method called | Inject custom params |
-| `TestExecutionExceptionHandler` | When test throws | Log/handle exceptions |
-| `AfterTestExecutionCallback` | Just after `@Test` | Timing end |
-| `AfterEachCallback` | After `@AfterEach` | Cleanup, logging |
-| `AfterAllCallback` | After `@AfterAll` | DB stop, global cleanup |
-| `TestInstancePostProcessor` | After class created | Inject into test fields |
-
----
-
-### Bottom line
-
-> JUnit 5 **Extension** is a plugin system that lets you hook into every phase of the test lifecycle
->
-> **3 main uses** from the diagram — conditionally enable/disable tests, add code before/after tests, intercept method calls for logging
->
-> You implement **one or more Extension interfaces**, register with `@ExtendWith`, and JUnit calls your code automatically at the right moment
->
-> The most famous extension you already use daily is **`MockitoExtension`** — it processes `@Mock` and `@InjectMocks` by implementing `BeforeEachCallback` and `ParameterResolver` internally
+1. `BeforeAllCallback` extensions + `@BeforeAll`
+2. `TestInstancePostProcessor`
+3. `BeforeEachCallback` extensions + `@BeforeEach`
+4. `ParameterResolver` extensions
+5. `BeforeTestExecutionCallback` extensions
+6. `InvocationInterceptor` wraps the test method (`@Test` runs here)
+7. `AfterTestExecutionCallback` extensions
+8. `TestExecutionExceptionHandler` (only if an exception was thrown)
+9. `@AfterEach` + `AfterEachCallback` extensions
+10. `AfterAllCallback` extensions + `@AfterAll`
