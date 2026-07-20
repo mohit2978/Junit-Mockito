@@ -52,6 +52,8 @@ Only the test method(s) carrying that tag get executed:
 
 2. **Stripped tag must not contain whitespaces** — Internally JUnit first *strips* the tag (removes leading/trailing whitespace); after that there must be **no whitespace** left inside it.
 
+stripped means without no leading and trailing whitespaces.
+
    ```java
    // VALID
    @Test
@@ -131,6 +133,8 @@ class PaymentTaggingTest {
 
 The IDE internally calls the same JUnit **Launcher API** and also passes the tag info. Select **Tags** as the test kind and enter the tag expression:
 
+![alt text](image-7.png)
+
 ![alt text](image-3.png)
 
 **2. Through the Maven Plugin**
@@ -154,6 +158,8 @@ Hardcode the tag expression directly in the `maven-surefire-plugin` config:
     </plugins>
 </build>
 ```
+`mvn test` will run only test phase.
+
 
 Running `mvn test` picks up only the tests matching the expression:
 
@@ -194,6 +200,10 @@ Run it with:
 mvn test -PtagTest -Dgroups="bank | card"
 ```
 
+After `-P` then we have profile Name `tagTest`.
+
 > Think of a **profile** as a **switch**. Activate it with `-P<profileName>` when you want to use it; skip it otherwise.
 >
 > Plain `mvn test` (without `-PtagTest`) simply runs **all** the tests.
+
+TestSuite is also one of popular way to group and runmultiple test together.

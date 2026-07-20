@@ -11,7 +11,7 @@ void repeatedTest() {
 
 **Useful for:**
 
-- Detecting intermittent issues.
+- Detecting intermittent issues(case when sometimes code is working and soemtimes not).
 - Testing Idempotency.
 - Stress testing (running code repeatedly to ensure it behaves properly under heavy and prolonged load).
 - etc.
@@ -221,8 +221,14 @@ void testMethod() {
     System.out.println("inside test method");
 }
 ```
+ for each repetition we get name from 
+ Reapeated test annotation
 
 ![alt text](image-7.png)
+
+
+we want to give different name to each test
+
 
 `@RepeatedTest` annotation source — it also provides fields which we can use for the name:
 

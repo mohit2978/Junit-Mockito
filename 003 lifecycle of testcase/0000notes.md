@@ -140,7 +140,7 @@ Output — notice only **one class instance** is created for both test cases:
 **Go for `Lifecycle.PER_CLASS` only when:**
 
 - You want to share state across test cases.
-- Your test code is thread-safe.
+- Your test code should be thread-safe as state is shared and all run in parallel.
 
 ---
 
@@ -209,6 +209,8 @@ public class Junit5LifecycleDemo {
 }
 ```
 
+src/test/resouces/**`junit-platform.properties`**
+
 **`junit-platform.properties`**
 
 ```properties
@@ -224,6 +226,7 @@ junit.jupiter.execution.parallel.mode.default = concurrent
 
 # Multiple Test Classes can be executed in parallel, default value is
 # "same_thread" means sequentially
+# Above one was for methods this for class
 junit.jupiter.execution.parallel.mode.classes.default = concurrent
 
 # thread pool managing strategy:
