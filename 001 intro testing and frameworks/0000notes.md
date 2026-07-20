@@ -199,3 +199,16 @@ If your entire suite were functional tests, a single failure would be hard to lo
 ![alt text](image-3.png)
 
 JUnit with Mockito is the most popular combination, and we'll use it in upcoming videos.
+
+## Various Approaches
+
+![alt text](image-4.png)
+
+TDD first we write failing test case and then we try to develop code which passes the test case and then we refactor.
+
+
+No one uses both TDD and BDD 
+
+generally we use test After development approach.
+
+

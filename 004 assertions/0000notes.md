@@ -1,7 +1,19 @@
 ### JUnit5 Assertions
 
+![alt text](image-28.png)
+
+![alt text](image-29.png)
+
+![alt text](image-30.png)
+
 - Assertions are used to verify expected outcomes in tests.
 - If an assertion fails, the test fails.
+
+![alt text](image-31.png)
+
+![alt text](image-32.png)
+
+
 
 Let's go through each of these assertions one by one.
 
@@ -208,7 +220,79 @@ void testAssertLinesMatch() {
 
 ![alt text](image-4.png)
 
-**Regex Patterns:**
+### Regex, Explained Clearly
+
+> A **regex** (regular expression) is just a **pattern that describes text**, instead of the exact text itself. `assertLinesMatch` checks each *actual* line against the corresponding *expected* line — if the expected line isn't a valid exact match, JUnit treats it as a regex and tries to match it against the actual line.
+
+**How to read a regex — build it from 3 building blocks:**
+
+**1. What characters are allowed (character classes)**
+
+| Pattern | Meaning | Matches | Doesn't match |
+|---|---|---|---|
+| `\d` | a single digit (`0-9`) | `5` in `"a5b"` | `a`, `_` |
+| `\w` | a single "word" character — letters, digits, underscore (same as `[A-Za-z0-9_]`) | `a`, `5`, `_` | `@`, ` ` (space) |
+| `\s` | a single whitespace character (space, tab, newline) | `" "` | `a` |
+| `[A-Za-z]` | a single letter, upper or lower case | `X`, `x` | `5`, `_` |
+| `[A-Za-z0-9]` | a single letter or digit | `X`, `5` | `_`, `@` |
+| `.` | **any** single character (except newline) | `a`, `5`, `@` | (matches almost everything) |
+| `[abc]` | any **one** of the listed characters | `a`, `b`, `c` | `d` |
+| `[^abc]` | any character **except** the listed ones (`^` inside `[]` means NOT) | `d`, `5` | `a`, `b`, `c` |
+
+**2. How many times it can repeat (quantifiers)** — these go *right after* whatever they're quantifying:
+
+| Pattern | Meaning | Example |
+|---|---|---|
+| `+` | 1 or more times | `\d+` matches `5`, `42`, `1000` (but not `""`) |
+| `*` | 0 or more times | `\d*` matches `""`, `5`, `1000` |
+| `?` | 0 or 1 time (optional) | `colou?r` matches `color` and `colour` |
+| `{3}` | exactly 3 times | `\d{3}` matches `123` but not `12` or `1234` |
+| `{2,4}` | between 2 and 4 times | `\d{2,4}` matches `12`, `123`, `1234` |
+
+So `[A-Za-z]+` reads as: "**1 or more** letters, in a row" — that's how it matches whole words like `"Hello"` or `"World"`, but a single character class like `[A-Za-z]` (without the `+`) would only match **one** letter.
+
+**3. Position / structure (anchors and groups)**
+
+| Pattern | Meaning |
+|---|---|
+| `^` | start of the line/text |
+| `$` | end of the line/text |
+| `(abc)` | groups `abc` together, e.g. for applying a quantifier to the whole group, or for `\|` (OR) |
+| `a\|b` | matches `a` OR `b` |
+
+**Putting it together — walking through the example in this file:**
+
+```java
+List<String> expected = List.of("Hello", "World from [A-Za-z]+");
+List<String> actual   = List.of("Hello", "World from XYZ");
+```
+
+- Line 1: `"Hello"` has no special regex characters, so JUnit just does an exact string match against `"Hello"` — matches.
+- Line 2: `"World from [A-Za-z]+"` is treated as a regex, because `assertLinesMatch` first tries an exact match, and only falls back to regex if that fails.
+  - `World from ` — matched literally, character by character.
+  - `[A-Za-z]+` — matches **1 or more letters**. Against the actual text `XYZ`, this matches `X`, `Y`, `Z` (3 letters, all allowed by `[A-Za-z]`) — so the whole line matches.
+
+**Why the mismatch example below fails:**
+
+```java
+List<String> expected = List.of("Hello", "World from [A-Za-z]+");
+List<String> actual   = List.of("Hello", "World from 42");
+```
+
+- `World from ` matches literally, same as before.
+- `[A-Za-z]+` needs **1 or more letters**, but the actual text has `42` — digits, not letters. `4` isn't in the character class `[A-Za-z]`, so the match fails right there, and the whole line (and the test) fails.
+
+**A few more practical patterns you'll commonly reach for:**
+
+| Pattern | Meaning | Example |
+|---|---|---|
+| `\d+` | one or more digits | matches `"123"`, `"42"` |
+| `\w+` | one or more word characters | matches `"Hello"`, `"user_1"` |
+| `.*` | anything, including nothing — matches the **rest of the line** | useful when only part of a line matters, e.g. `"Started in .*"` matches `"Started in 2.3 seconds"` |
+| `\d{4}-\d{2}-\d{2}` | a date in `YYYY-MM-DD` format | matches `"2026-07-20"` |
+| `.*ERROR.*` | any line that **contains** the word `ERROR` anywhere | matches `"12:30 ERROR: failed"` |
+
+**Regex Patterns (quick reference used in this file):**
 
 | Pattern | Meaning |
 |---|---|
@@ -527,7 +611,65 @@ void testAssertTimeout() {
 ### 18. `assertTimeoutPreemptively()`
 
 - Similar to `assertTimeout()`, but aborts execution **immediately** when the timeout is exceeded.
-- Internally it uses a different thread for execution, so when the timeout exceeds, it interrupts it.
+- Internally it uses a **different thread** for execution, so when the timeout exceeds, it interrupts it.
+
+### `assertTimeout()` vs `assertTimeoutPreemptively()` — The Key Difference
+
+**`assertTimeout()` — runs on the same thread, always lets the code finish:**
+
+```java
+assertTimeout(Duration timeout, Executable executable)
+```
+
+- The `Executable` runs on the **calling thread** (the same thread the test itself runs on) — no new thread is created.
+- JUnit lets the code **run to completion**, no matter how long it takes, and *then* checks whether the elapsed time exceeded the timeout.
+- If it took too long, the assertion fails **after the fact** — but by then, all the side effects of that code have already happened.
+
+```java
+@Test
+void testAssertTimeout() {
+    assertTimeout(Duration.ofMillis(100), () -> {
+        Thread.sleep(150);
+        System.out.println("This line still runs, even though we exceeded the timeout");
+    });
+}
+```
+
+Even though this fails (150ms > 100ms), `"This line still runs..."` is still printed, because the code wasn't stopped early — it just ran and then got judged.
+
+**`assertTimeoutPreemptively()` — runs on a separate thread, aborts as soon as the timeout hits:**
+
+```java
+assertTimeoutPreemptively(Duration timeout, Executable executable)
+```
+
+- The `Executable` runs on a **new, separate thread**, while the main test thread waits for either: (a) the code to finish, or (b) the timeout to elapse — whichever comes first.
+- The moment the timeout elapses, JUnit **interrupts** that separate thread and immediately fails the test — it does **not** wait for the code to finish.
+
+```java
+@Test
+void testAssertTimeoutPreemptively() {
+    assertTimeoutPreemptively(Duration.ofMillis(100), () -> {
+        Thread.sleep(150);
+        System.out.println("This line may never run — the thread gets interrupted at ~100ms");
+    });
+}
+```
+
+Here, the test fails at ~100ms — it doesn't wait around for the full 150ms `Thread.sleep()` to finish.
+
+**Side-by-side comparison:**
+
+| | `assertTimeout()` | `assertTimeoutPreemptively()` |
+|---|---|---|
+| Runs on | Same (calling) thread | A new, separate thread |
+| When does it fail | *After* the code finishes running, if it took too long | *As soon as* the timeout elapses — doesn't wait |
+| Does the code finish executing | **Yes, always** — even on failure | **Not necessarily** — gets interrupted mid-way |
+| Side effects on timeout | All side effects from the code still happen | Side effects may be **partial/incomplete**, since execution was cut off |
+| Thread-safety concerns | None — single-threaded, straightforward | Code must be written to be safe when run on another thread (e.g. no reliance on `ThreadLocal`s tied to the test thread, no assumptions about ordering with the main thread) |
+| Typical use case | You just want to know "did this take too long?" without changing behavior | You want to **hard-cap** execution — useful for tests where letting a slow/hanging call run to completion would make the *whole test suite* slow or hang |
+
+**A subtlety worth knowing:** `assertTimeoutPreemptively()` interrupting the thread doesn't *guarantee* the thread actually stops. Java's thread interruption is cooperative — if the code inside the `Executable` is in a tight loop that never checks `Thread.interrupted()`, or is blocked on something that doesn't respond to interrupts, that background thread can keep running in the background even after the test has already failed and moved on. This is exactly why the JUnit team's own guidance leans towards preferring `assertTimeout()` unless you specifically need the "cut it off now" behavior.
 
 ---
 
