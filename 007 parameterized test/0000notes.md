@@ -1,6 +1,11 @@
 ### Definition
 
+ReapeatedTests was used to do same test with same input multiple times but we need multiple inputs on different test case.
+
 > Parameterized tests are used to run the **same test** (but with **different inputs**) multiple times.
+
+
+For single parameter we have different way and multiple it is different see.
 
 ---
 
@@ -10,6 +15,26 @@ Provides a **single parameter** to the test, running it multiple times with diff
 
 - `@ValueSource`
 - `@EnumSource`
+
+These two only help in single parameter.
+
+### Multiple Parameter Parameterized Tests
+
+Provides **multiple parameters** to the test, running it multiple times with different values.
+
+- `@CsvSource`
+- `@CsvFileSource`
+
+
+### Objects and complex parameters
+
+![alt text](image-28.png)
+
+3rd one is for complex parameters
+
+### Single Parameter Parameterized Tests
+
+first let us see this
 
 #### `@ValueSource`
 
@@ -89,6 +114,8 @@ void testExplicitConversion(@ConvertWith(StringUpperCaseConverter.class) String 
 
 ![alt text](image-3.png)
 
+we have `StringUpperCaseConverter` clas below defined ,we only need to define it.
+
 `ParameterContext` has all the info about the particular parameter: its position in the parameter list, its type, and which method or constructor declared this variable.
 
 ```java
@@ -96,7 +123,7 @@ public class StringUpperCaseConverter implements ArgumentConverter {
 
     @Override
     public Object convert(Object source, ParameterContext parameterContext) throws ArgumentConversionException {
-
+        //custom logic
         if (source instanceof String && parameterContext.getParameter().getType() == String.class) {
             return ((String) source).toUpperCase();
         }
@@ -106,6 +133,10 @@ public class StringUpperCaseConverter implements ArgumentConverter {
 ```
 
 ![alt text](image-4.png)
+
+![alt text](image-26.png)
+
+`ConvertWith` only converts single parameter.
 
 ---
 
@@ -133,6 +164,8 @@ The `null` case fails (since `isPalindrome(null)` isn't handled), while the empt
 ---
 
 ### `@EnumSource`
+
+this is for single parameter only
 
 ```java
 // Enum Parameter: All Enum values
@@ -192,6 +225,9 @@ Provides **multiple parameters** to the test, running it multiple times with dif
 
 Using this, we can provide multiple parameters inline. By default, `,` is used as the delimiter.
 
+
+see below we need 3 parameters `a,b,expected`
+
 ```java
 @ParameterizedTest
 @CsvSource(value = {"1,2,3", "5,5,10"}, delimiter = ',')   // ',' is default, so even skipping it works fine
@@ -202,7 +238,7 @@ void testCSVSource(int a, int b, int expected) {
 
 ![alt text](image-9.png)
 
-The first line can be used as a CSV header by setting `useHeadersInDisplayName = true`:
+The first line can be used as a CSV header by setting `useHeadersInDisplayName = true`,so first line will be skipped
 
 ```java
 @ParameterizedTest
@@ -220,6 +256,8 @@ void testCSVSourceWithHeader(int a, int b, int expected) {
     assertEquals(expected, a + b);
 }
 ```
+
+we have comma as delimeter and comma in input too,then? we use single quote for this
 
 So what if a value itself needs a `,`? Enclose the value within `'` (single quotes):
 
@@ -241,7 +279,7 @@ A few more edge cases:
 | `@CsvSource({ "hello, 'Delhi, India'" })` | 1st argument: `hello`, 2nd argument: `Delhi,India` |
 | `@CsvSource({ "hello, ''" })` — single quote start and end | 1st argument: `hello`, 2nd argument: `''` (empty) |
 | `@CsvSource({ "hello, " })` | 1st argument: `hello`, 2nd argument: `null` |
-| `@CsvSource(value = {"hello, world, N/A"}, nullValues = "N/A")` | 1st: `hello`, 2nd: `world`, 3rd: `null` |
+| `@CsvSource(value = {"hello, world, N/A"}, nullValues = "N/A")` | 1st: `hello`, 2nd: `world`, 3rd: `null` As N/A is treated as null |
 | `@CsvSource(value = {" hello, world"}, ignoreLeadingAndTrailingWhitespace = false)` — by default this is `true` | 1st: `' hello'`, 2nd: `' world'` (space not trimmed) |
 
 ---
@@ -293,6 +331,8 @@ Only 1 test data run, and the first 2 rows got skipped:
 ![alt text](image-14.png)
 
 ---
+
+![alt text](image-27.png)
 
 ### Object and Complex Parameters — `@MethodSource`
 
@@ -439,6 +479,10 @@ public class UserArgumentProvider implements ArgumentsProvider {
 
 ![alt text](image-21.png)
 
+it can be used for complex objects. here return type be always `stream of arguments`
+
+here we also get `ExtensionContext ` so taht you can see in Extensions notes.
+
 ---
 
 ### `@ArgumentsAccessor`
@@ -461,6 +505,7 @@ One way to resolve this is `@ArgumentsAccessor`:
 void testWithArgumentsAccessor(ArgumentsAccessor accessor) {
     String name = accessor.getString(0);
     int age = accessor.getInteger(1);
+    //use when you have multiple arguments like 10 or 20
     User userObj = new User(name, age);
 
     assertTrue(userObj.age > 18);
