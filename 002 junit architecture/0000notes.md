@@ -18,9 +18,15 @@ This monolithic jar is responsible for **everything**:
 
 ![alt text](image-1.png)
 
+Junit5 also supports junit4 so it is recommended to use junit5.
+
 Let's understand the complete architecture flow:
 
 ![alt text](image-2.png)
+
+Junit have multiple modules and each module has different responsibility.
+
+see Eclipse/Intellij directly talks to launcher.
 
 - **JUnit Platform** — the foundation layer. Exposes `junit-platform-engine`, `junit-platform-launcher`, and integration points (`junit-platform-sunfire-provider` for Maven, `junit-platform-gradle-plugin` for Gradle, `junit-platform-console` for CLI) so build tools, IDEs, and the command line can all talk to it.
 - **JUnit Jupiter** — the Test Engine for JUnit5 test cases.
@@ -167,7 +173,7 @@ LauncherDiscoveryRequest request = LauncherDiscoveryRequestBuilder.request()
 Launcher launcher = LauncherFactory.create();
 TestPlan testPlan = launcher.discover(request);
 
-launcher.execute(request);
+launcher.execute(request);//here execution happens
 ```
 
 ---

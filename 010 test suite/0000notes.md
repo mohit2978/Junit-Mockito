@@ -7,6 +7,9 @@ We can create multiple test suites based on our need.
 **Real world use cases:**
 
 1. **PR (Pull Request) validation** — instead of running all test cases for every PR, run only the P0 (critical) Test Suite.
+
+        we create a group P0 which has all P0 test cases so all this run together all other P1,p2,p3 we do want to run 
+
 2. **Hotfix or targeted change** — e.g. a bank flow hotfix: we can only run the Bank test suite (this saves time and reduces unnecessary test execution).
 3. **Better maintainability and organization** — grouping of test cases feature-wise:
    - **Instrument-wise grouping**: Bank Test Suite, Card Test Suite, Balance Test Suite, etc.
@@ -57,6 +60,8 @@ We know that Test Suite logic is run by `junit-platform-launcher`, but it **can 
 </dependency>
 ```
 
+This is for additional annotations
+
 ---
 
 ### Discovery Step
@@ -69,6 +74,7 @@ import org.junit.platform.suite.api.Suite;
 /*
 This annotation tells Junit that, this is a Test suite class,
 use this to discover the test cases which need to be grouped together.
+dont expect @Test method here
 */
 @Suite
 public class MySuite {
@@ -145,6 +151,7 @@ import org.junit.platform.suite.api.Suite;
 
 @Suite
 /* for selecting single test method */
+//on one test suite you can have many selectors
 @SelectMethod(
         type = concepts.TaggingAndFilter.PaymentTaggingTest.class,
         name = "validateCardScenario1"
@@ -203,9 +210,17 @@ public class MySuiteMethodSelectorExample {
 }
 ```
 
-Internally it will try to look for a method `testPalindrome()`, but there is no such method (with that exact signature) in `MyStringUtilTest` — since it's parameterized, the actual method has a `String` parameter, and selection fails:
+Internally it will try to look for a method `testPalindrome()`, but there is no such method with no parameters(with that exact signature) in `MyStringUtilTest` — since it's parameterized, the actual method has a `String` parameter, and selection fails:
 
 ![alt text](image-5.png)
+
+so for that use 
+
+- `@SelectPackages`
+- `@SelectClasses`
+
+
+if we use multtiple seletors within a package we have class and we select class and package both ,now test will be duplicate ,`Junit platform` remove those duplicates.
 
 ---
 
@@ -217,6 +232,8 @@ Internally it will try to look for a method `testPalindrome()`, but there is no 
 - `@IncludeTags` / `@ExcludeTags`
 - `@IncludeClassNamePatterns` / `@ExcludeClassNamePatterns`
 - `@IncludeEngines` / `@ExcludeEngines`
+
+These 8 are frequently used but there are more.
 
 **`@IncludePackages`**
 
@@ -385,6 +402,8 @@ public class MySuiteFilterExample {
 }
 ```
 
+In intellij we can directly run but in Company we use commands on prd.
+
 **We can run the Suite using a Maven command** (same can be configured in a CI job):
 
 ```
@@ -404,6 +423,8 @@ If a Test Suite class itself lives inside a package that's also being selected (
 Same test (`validateCardScenario1()`) runs multiple times, once per suite that (directly or indirectly) selects it:
 
 ![alt text](image-13.png)
+
+Have TestSuite in separate Package not inside a subpackage outside of testcase.as if you write it will find TesSuit too run it too. so duplicates it will run.
 
 **2nd: Difference between Tagging with Filter and Test Suite**
 
