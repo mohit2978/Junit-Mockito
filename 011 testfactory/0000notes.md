@@ -148,7 +148,11 @@ public JupiterEngineExecutionContext execute(JupiterEngineExecutionContext conte
 
 ![alt text](image-5.png)
 
-> **Note:** There is no `@BeforeEach`, `@AfterEach` lifecycle method support in Dynamic Tests.
+> **Note:** There is no `@BeforeEach`, `@AfterEach` lifecycle method support in Dynamic Tests. So dynamic Test does not support this .BeforeAll and AfterAll is ooresent.
+
+Both have executable() but here we have lamda expression run directly. In normal one it needs to create lamda first and then it run so internally both are exactly same executing lambda expressions.
+
+
 
 ---
 
@@ -163,11 +167,12 @@ Payment gateway <-- settlement.csv -- Bank
 
 - **`settlement.csv` file is stable, known schema, same validation for each row** →
   - Parameterized Test using `@CsvFileSource` — 1 test method, executed N times (N = no of rows in file)
-  - Dynamic Test using `@TestFactory` — also works fine here.
+  - Dynamic Test using `@TestFactory` — also works fine here.N independent test , 1 more each row.
 
 - **`settlement.csv` file is unstable, columns may appear or disappear, column order may change, or different validation is needed for different rows** →
   - Parameterized Test using `@CsvFileSource` — not flexible enough for this.
-  - Dynamic Test using `@TestFactory` — **N independent tests, 1 for each row**, and each row's test logic can differ.
+  - Dynamic Test using `@TestFactory` — **N independent tests, 1 for each row**, and each row's test logic can differ.` Sometimes interviewer ask why we need Dynamic Tests so here is answer.`
+
 
 ![alt text](image-6.png)
 
@@ -191,6 +196,8 @@ DynamicNode
 ```
 
 ![alt text](image-7.png)
+
+leaf-Node means that is exceutable.
 
 Example hierarchy for a settlement file:
 
@@ -216,6 +223,7 @@ DynamicContainer: "Settlement.csv"
 
 ```java
 // single test
+//TestFactory makes it dynamic test
 @TestFactory
 DynamicTest addDynamicTest() {
 
@@ -287,6 +295,8 @@ Collection<DynamicTest> multipleDynamicTestsCollectionReturn() {
     return tests;
 }
 
+//for each test will run
+
 // ARRAY
 @TestFactory
 DynamicTest[] multipleDynamicTestsArrayReturn() {
@@ -310,12 +320,17 @@ DynamicTest[] multipleDynamicTestsArrayReturn() {
 
 **3. Dynamic Container — Different Number of Dynamic Tests for Different Rows**
 
+it can have `dynamic test` as well as `dynamic container`
+
 Sample file:
 
 | Txn_Id | Amount | Currency |
 |---|---|---|
 | Txn1 | 100 | INR |
 | Txn2 | ABC | USD |
+
+for INR we need differnet test like amount is Integer and amount>=0<br>
+else amount is Integer or not
 
 ```java
 @TestFactory
