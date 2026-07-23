@@ -1,5 +1,7 @@
 ### Introduction (Mocking vs Stubbing vs Spy)
 
+Mocking vs Stubbing vs Spy is very important topic for interview
+
 ### Mocking
 
 - In unit test cases, we test a unit **in isolation**.
@@ -49,7 +51,9 @@ class PaymentService {
 
 `OrderService.placeOrder(int amt)` invokes `PaymentService.pay(int amt)` for placing the order.
 
-So, when we write unit test cases for the `OrderService.placeOrder` method, we should **not** invoke `PaymentService` or any other class — we need to **MOCK** (fake object) them.
+So, when we write unit test cases for the `OrderService.placeOrder` method, we should **not** invoke `PaymentService` or any other class — we need to **MOCK** (fake object) them.We do not want to test PayMentService.
+
+Mocking help in creating face objects called as mock. We can control what they will respond when called.
 
 **Test case scenario 1: Place an order and payment transaction gets success.**
 
@@ -106,7 +110,7 @@ void placeOrderFailure() {
 }
 ```
 
-So now, in both the above scenarios, `OrderService.placeOrder` method does **not** invoke `PaymentService.pay` method:
+So now, in both the above scenarios, `OrderService.placeOrder` method does **not** invoke `PaymentService.pay` method. It invokes mock object
 
 ![alt text](image.png)
 
@@ -226,6 +230,10 @@ class Calculator {
     }
 }
 ```
+If stubbing not present then behave as real object 
+
+else fake object
+
 
 ```java
 Calculator calculator = spy(new Calculator());
@@ -239,6 +247,7 @@ assertEquals(6, sum);
 int product = calculator.multiply(4, 2);   // mocked → 100
 assertEquals(100, product);
 ```
+as for add no stubbing so act as real object
 
 Output:
 

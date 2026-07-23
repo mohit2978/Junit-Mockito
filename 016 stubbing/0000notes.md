@@ -1,0 +1,445 @@
+### Stubbing Behavior
+
+> In the Mockito Architecture topic, we already covered how stubbing works internally.
+
+**By default, Mockito mocks:**
+
+- return `null` for objects
+- return `0` for primitives
+- return `false` for `boolean`
+- return empty collections (for some types)
+
+**But stubbing overrides that.**
+
+For example, in the test case below, no stubbing is used:
+
+```java
+@Test
+void testWithoutStub() {
+
+    Calculator calculator = Mockito.mock(Calculator.class);
+    int sum = calculator.add(4, 2);
+
+    assertEquals(6, sum);   // FAILS — sum is actually 0 (default), not 6
+}
+```
+
+---
+
+### Let's See the Different Ways of Stubbing
+
+### 1. `when(...).thenReturn(...)`
+
+Defines the behavior to return a specific value when a certain condition is met.
+
+```java
+@Test
+void testFixedReturn1() {
+    Calculator calculator = Mockito.mock(Calculator.class);
+    /*
+    This does exact argument matching
+    */
+
+    // stubbing
+    Mockito.when(calculator.add(4, 2)).thenReturn(10);
+
+    int sum = calculator.add(4, 2);
+    assertEquals(10, sum);
+}
+```
+
+> If the `add()` method is invoked with **other** parameters, like `calculator.add(5, 4)`, then this mock stub (`Mockito.when(calculator.add(4, 2)).thenReturn(10)`) will **not** be used, since the arguments don't match.
+>
+> So `calculator.add(5, 4)` will return the **default value**, i.e. `0`.
+
+---
+
+### 2. `when(...).thenThrow(...)`
+
+Used to stub a method so that it throws a specified exception when invoked during a test.
+
+There are 2 types of exceptions:
+
+**1. Unchecked Exception — Runtime exception**
+
+- The compiler does **not** enforce us to handle it.
+
+```java
+@Test
+void testFixedReturn2() {
+
+    Calculator calculator = Mockito.mock(Calculator.class);
+
+    // stubbing
+    when(calculator.add(4, 2)).thenThrow(new NullPointerException());
+
+    assertThrows(NullPointerException.class, () -> calculator.add(4, 2));
+}
+```
+
+This test case works fine.
+
+**2. Checked Exception — Compile time exception**
+
+- The compiler **forces** us to handle it, either by try/catch or by propagating it.
+- The test method must **match the method signature** (declare `throws`).
+
+```java
+public int add(int a, int b) throws IOException {
+    return a + b;
+}
+```
+
+If the real method doesn't declare `throws IOException`, stubbing it to throw `IOException` won't even compile:
+
+![alt text](image.png)
+
+```java
+@Test
+void testFixedReturn2() throws IOException {
+
+    Calculator calculator = Mockito.mock(Calculator.class);
+
+    // stubbing
+    when(calculator.add(4, 2)).thenThrow(new IOException());
+
+    assertThrows(IOException.class, () -> calculator.add(4, 2));
+}
+```
+
+---
+
+### 3. `when(...).thenReturn(...).thenReturn(...)`
+
+Used for **sequential stubbing** — returning different values on successive invocations of the same method.
+
+```java
+when(service.get("u123"))
+        .thenReturn(null)
+        .thenReturn("shrayansh");
+```
+
+**Behavior:**
+
+```
+1st call of service.get("u123") -> null
+2nd call of service.get("u123") -> shrayansh
+3rd call of service.get("u123") -> shrayansh   (last value repeats)
+```
+
+```java
+@Test
+void testSequentialStub() {
+    Calculator calculator = Mockito.mock(Calculator.class);
+    // stubbing
+    when(calculator.add(4, 2))
+            .thenReturn(5)
+            .thenReturn(6)
+            .thenThrow(new NullPointerException())
+            .thenReturn(7);
+
+    assertEquals(5, calculator.add(4, 2));
+    assertEquals(6, calculator.add(4, 2));
+    assertThrows(NullPointerException.class, () -> calculator.add(4, 2));
+    assertEquals(7, calculator.add(4, 2));
+}
+```
+
+---
+
+### 4. `doReturn(...).when(...)`
+
+- Stubs a method **without invoking the real method** during stubbing.
+- Useful for **spies**.
+
+```java
+class Calculator {
+    int add(int a, int b) {
+        return a + b;
+    }
+}
+```
+
+```java
+Calculator calculator = spy(new Calculator());
+
+// stubbing: But also invokes real method
+/*
+Like this, here stubbing is happening.
+But it will also invoke the add method.
+*/
+when(calculator.add(4, 2)).thenReturn(100);
+
+int sum = calculator.add(4, 2);   // returns 100, but it will also invoke the real method too
+```
+
+**Safer version for spy objects:**
+
+```java
+Calculator calculator = spy(new Calculator());
+
+// stubbing: do not invoke real method, safe to use with spy
+doReturn(100).when(calculator).add(4, 2);
+
+int sum = calculator.add(4, 2);   // mocked → 100
+```
+
+> Why `doReturn().when()` is safe for spy objects was already covered in the `013 mockito architecture` notes/video.
+
+---
+
+### 5. `doNothing()`
+
+Used to **explicitly** stub a `void` method, so that it performs no action when invoked.
+
+```java
+class NotificationService {
+    void sendMail() {
+        . . .
+    }
+}
+```
+
+**Using Mock:**
+
+```java
+@Test
+void testVoidReturnMethod() {
+
+    NotificationService mockNotifyObj = Mockito.mock(NotificationService.class);
+
+    mockNotifyObj.sendMail();
+}
+```
+
+All good — `mockNotifyObj.sendMail()` does nothing by default (mocks don't call the real method).
+
+**Using Spy:**
+
+```java
+@Test
+void testVoidReturnMethod() {
+
+    NotificationService spyNotifyObj = Mockito.spy(new NotificationService());
+
+    spyNotifyObj.sendMail();
+}
+```
+
+The above code **will** invoke the real `sendMail()` method (since it's a spy, and no stubbing was applied to prevent that).
+
+**So, how to fix for Spy?**
+
+```java
+@Test
+void testVoidReturnMethod() {
+
+    NotificationService spyNotifyObj = Mockito.spy(new NotificationService());
+
+    doNothing().when(spyNotifyObj).sendMail();
+}
+```
+
+---
+
+### 6. `doThrow()`
+
+Used to stub a `void` method so that it throws a specified exception when invoked, **without calling the real method**.
+
+**How to test the exception scenario for a `void` method?**
+
+We can **not** use `when(...).thenThrow(...)` here — it won't even compile, since `when(voidMethodCall())` doesn't work (a `void` call can't be passed as an argument):
+
+![alt text](image-1.png)
+
+```
+Required type: T
+Provided: void
+reason: no instance(s) of type variable(s) T exist so that void conforms to T
+```
+
+**Answer is: `doThrow()`**
+
+```java
+@Test
+void testDoThrowMethod() {
+    NotificationService mockNotifyObj = Mockito.mock(NotificationService.class);
+
+    doThrow(new RuntimeException()).when(mockNotifyObj).sendMail();
+
+    assertThrows(RuntimeException.class, () -> mockNotifyObj.sendMail());
+}
+```
+
+---
+
+### 7. Matchers
+
+Recall from earlier: the problem of "**exact argument matching**" —
+
+> If the `add()` method is invoked with other parameters, like `calculator.add(5, 4)`, then the mock stub `Mockito.when(calculator.add(4, 2)).thenReturn(10)` will **not** be used, since arguments are not matched. So `calculator.add(5, 4)` returns the default value, i.e. `0`.
+
+**How do we resolve this? Answer: Matchers.**
+
+> Mockito matchers allow **flexible argument matching** when stubbing method calls.
+
+```java
+@Test
+void testFixedReturn1() {
+    Calculator calculator = Mockito.mock(Calculator.class);
+
+    // stubbing
+    Mockito.when(calculator.add(anyInt(), anyInt())).thenReturn(10);
+
+    assertEquals(10, calculator.add(4, 2));
+    assertEquals(10, calculator.add(5, 4));
+}
+```
+
+Now the stub applies to **any** `int` arguments.
+
+**Common matchers:**
+
+| Matcher | Description | Example |
+|---|---|---|
+| `any()` | Matches any object of any type (including null) | `when(service.process(any())).thenReturn("ok")` |
+| `anyString()` | Matches any `String` (including null) | `when(service.getUser(anyString())).thenReturn(user)` |
+| `anyInt()` | Matches any `int` value | `when(service.add(anyInt(), anyInt())).thenReturn(10)` |
+| `anyLong()` | Matches any `long` value | `when(repo.findById(anyLong())).thenReturn(entity)` |
+| `anyDouble()` | Matches any `double` value | `when(service.applyDiscount(anyDouble())).thenReturn(100.0)` |
+| `anyList()` | Matches any `List` (including null) | `when(service.process(anyList())).thenReturn(true)` |
+| `anyMap()` | Matches any `Map` (including null) | `when(service.process(anyMap())).thenReturn(true)` |
+| `eq()` | Matches an exact value (used when mixing matchers) | `when(service.add(eq(5), anyInt())).thenReturn(15)` |
+| `isNull()` | Matches only `null` values | `when(service.process(isNull())).thenReturn("empty")` |
+| `notNull()` | Matches non-null values | `when(service.process(notNull())).thenReturn("valid")` |
+| `gt()` | Matches values greater than a specific value | `when(service.calculate(gt(100))).thenReturn("high")` |
+| `lt()` | Matches values less than a specific number | `when(service.calculate(lt(10))).thenReturn("low")` |
+| `geq()` | Matches values greater than or equal to a specific value | `when(service.calculate(geq(50))).thenReturn("eligible")` |
+| `leq()` | Matches values less than or equal to a specific value | `when(service.calculate(leq(20))).thenReturn("small")` |
+| `contains()` | Matches a string containing a given substring | `when(service.getUser(contains("admin"))).thenReturn(adminUser)` |
+| `startsWith()` | Matches a string starting with a given prefix | `when(service.getUser(startsWith("user_"))).thenReturn(user)` |
+| `endsWith()` | Matches a string ending with a given suffix | `when(service.getUser(endsWith("@gmail.com"))).thenReturn(gmailUser)` |
+| `matches()` | Matches a string using a regex pattern | `when(service.getUser(matches("user\\d+"))).thenReturn(user)` |
+
+**Important — if you use one matcher, ALL arguments must use matchers:**
+
+```java
+// WRONG — Mixing a raw value and a matcher does not work
+when(calculator.add(anyInt(), 5)).thenReturn(15);
+
+// CORRECT — use eq() for the raw value too
+when(calculator.add(anyInt(), eq(5))).thenReturn(15);
+```
+
+---
+
+### 8. Dynamic Stubbing: `thenAnswer()` and `doAnswer()`
+
+**Problem:**
+
+```java
+public class UserService {
+
+    private final UserRepository repository;
+
+    public UserService(UserRepository repository) {
+        this.repository = repository;
+    }
+
+    public void register(User user) {
+        repository.save(user);
+    }
+
+    public User getUser(Long id) {
+        return repository.findById(id);
+    }
+}
+```
+
+**Without Dynamic Stubbing:**
+
+```java
+@Test
+void testWithoutDynamicStubbing() {
+
+    UserRepository repository = mock(UserRepository.class);
+    UserService userService = new UserService(repository);
+
+    User user1 = new User(1L, "A");
+    User user2 = new User(2L, "B");
+
+    // Stubbing
+    doNothing().when(repository).save(user1);
+    doNothing().when(repository).save(user2);
+
+    userService.register(user1);
+    userService.register(user2);
+
+    // Stubbing
+    when(repository.findById(1L)).thenReturn(user1);
+    when(repository.findById(2L)).thenReturn(user2);
+
+    User result1 = userService.getUser(1L);
+    User result2 = userService.getUser(2L);
+
+    // assertion
+    assertEquals("A", result1.getName());
+    assertEquals("B", result2.getName());
+}
+```
+
+This test case works fine, but it has some weaknesses:
+
+1. **Every new user → we need to add 2 new stubs** (one for `save`, one for `findById`). 10 users → 20 stubs.
+2. **Not a realistic behavior of the repository.** If we observe this test case properly, it actually doesn't test the real behavior — the real behavior we intend to test is: during `save`, it stores the data; during `find`, it fetches from that storage. But this test case does neither — it just hardcodes what each call should independently return.
+
+**So:**
+
+- **STATELESS** dependency → output depends only on input → **static stubbing is fine**.
+- **STATEFUL** dependency → output depends on a previous call → **dynamic stubbing helps**.
+
+Stateful examples:
+- Cache: `get()` depends on a previous `put()`.
+- Retry logic: say for the first 3 calls a retry happens, but the 4th call should throw an exception.
+- etc.
+
+**With Dynamic Stubbing:**
+
+```java
+@Test
+void testWithDynamicStubbing() {
+
+    UserRepository repository = mock(UserRepository.class);
+    UserService userService = new UserService(repository);
+
+    Map<Long, User> store = new HashMap<>();
+
+    // simulate save
+    doAnswer(invocation -> {
+        User user = invocation.getArgument(0);
+        store.put(user.getId(), user);
+        return null;
+    }).when(repository).save(any());
+
+    // simulate findById
+    when(repository.findById(anyLong()))
+            .thenAnswer(invocation -> {
+                Long id = invocation.getArgument(0);
+                return store.get(id);
+            });
+
+    User user1 = new User(1L, "A");
+    User user2 = new User(2L, "B");
+
+    userService.register(user1);
+    userService.register(user2);
+
+    User result1 = userService.getUser(1L);
+    User result2 = userService.getUser(2L);
+
+    assertEquals("A", result1.getName());
+    assertEquals("B", result2.getName());
+}
+```
+
+> `doAnswer(...)` (for `void` methods) and `thenAnswer(...)` (for methods with a return value) let us write **custom logic** that runs when the stubbed method is invoked — using `invocation.getArgument(index)` to access whatever arguments were passed in that specific call. This is what lets the stub behave like a real, stateful implementation (a fake in-memory store here), instead of a fixed canned response.
