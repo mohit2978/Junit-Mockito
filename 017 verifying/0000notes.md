@@ -1,5 +1,36 @@
 ### Mockito Verification
 
+> **Video:** [Mockito: Different Ways of Verification](https://www.youtube.com/watch?v=wasBpF2fhwg&list=PL6W8uoQQ2c61_unqN5bY0kYp65Dt_Sm3c&index=19)
+>
+> **Timestamp:** [00:24](https://www.youtube.com/watch?v=wasBpF2fhwg&t=24s)
+
+### Video Topic Index
+
+| Timestamp | Topic |
+|---|---|
+| [00:24](https://www.youtube.com/watch?v=wasBpF2fhwg&t=24s) | Introduction to Mockito verification |
+| [02:06](https://www.youtube.com/watch?v=wasBpF2fhwg&t=126s) | Verification methods overview |
+| [04:40](https://www.youtube.com/watch?v=wasBpF2fhwg&t=280s) | Verifying a method invocation |
+| [07:01](https://www.youtube.com/watch?v=wasBpF2fhwg&t=421s) | How calls on a mock are recorded |
+| [08:43](https://www.youtube.com/watch?v=wasBpF2fhwg&t=523s) | Exact invocation count with `times(n)` |
+| [08:55](https://www.youtube.com/watch?v=wasBpF2fhwg&t=535s) | Verifying that a method was never called |
+| [09:24](https://www.youtube.com/watch?v=wasBpF2fhwg&t=564s) | `atLeastOnce()` and `atLeast(n)` |
+| [10:21](https://www.youtube.com/watch?v=wasBpF2fhwg&t=621s) | `atMostOnce()` and `atMost(n)` |
+| [10:41](https://www.youtube.com/watch?v=wasBpF2fhwg&t=641s) | Meaning of `only()` |
+| [10:39](https://www.youtube.com/watch?v=wasBpF2fhwg&t=639s) | Using argument matchers during verification |
+| [12:19](https://www.youtube.com/watch?v=wasBpF2fhwg&t=739s) | Matcher examples and custom argument validation |
+| [16:38](https://www.youtube.com/watch?v=wasBpF2fhwg&t=998s) | Limitation of validating parameters separately |
+| [19:20](https://www.youtube.com/watch?v=wasBpF2fhwg&t=1160s) | Cross-parameter validation with captured arguments |
+| [21:32](https://www.youtube.com/watch?v=wasBpF2fhwg&t=1292s) | Verifying method-invocation order |
+| [24:06](https://www.youtube.com/watch?v=wasBpF2fhwg&t=1446s) | Order-verification test example |
+| [25:57](https://www.youtube.com/watch?v=wasBpF2fhwg&t=1557s) | Using `InOrder` |
+| [30:25](https://www.youtube.com/watch?v=wasBpF2fhwg&t=1825s) | `verifyNoInteractions()` |
+| [32:34](https://www.youtube.com/watch?v=wasBpF2fhwg&t=1954s) | `verifyNoMoreInteractions()` |
+| [34:39](https://www.youtube.com/watch?v=wasBpF2fhwg&t=2079s) | Asynchronous service example |
+| [36:27](https://www.youtube.com/watch?v=wasBpF2fhwg&t=2187s) | Why immediate verification can fail for background work |
+| [39:00](https://www.youtube.com/watch?v=wasBpF2fhwg&t=2340s) | Difference between `timeout()` and `after()` |
+| [40:55](https://www.youtube.com/watch?v=wasBpF2fhwg&t=2455s) | When interaction verification is important |
+
 **JUnit `assertEquals()` vs Mockito `verify()`** — these answer two different questions:
 
 - **JUnit Assertions** check the **output/state**: "did the method *return* the right value?"
@@ -10,6 +41,8 @@
 ---
 
 ### Verification Cheatsheet
+
+> **Timestamp:** [02:06](https://www.youtube.com/watch?v=wasBpF2fhwg&t=126s)
 
 | Category | Method | Meaning |
 |---|---|---|
@@ -35,6 +68,8 @@
 ---
 
 ### 1. `verify(mock).method()`
+
+> **Timestamp:** [04:40](https://www.youtube.com/watch?v=wasBpF2fhwg&t=280s) · Internal recording: [07:01](https://www.youtube.com/watch?v=wasBpF2fhwg&t=421s)
 
 ```java
 class UserService {
@@ -80,9 +115,15 @@ Internally, this works off the same recording mechanism covered in `013 mockito 
 >
 > This follows directly from the Mockito Architecture topic — a real object (created with `new`) has no `MockMethodInterceptor` attached to it, so none of its method calls are ever intercepted or recorded into an `InvocationContainer`. With nothing recorded, there's nothing for `verify()` to check against. Only Mocks and Spies are backed by that interception machinery, so only they can be verified.
 
+#### Added by ChatGPT — verify observable behavior
+
+`verify()` does not call the dependency again; it checks the invocation history that the mock or spy has already recorded. Verify interactions that form part of the class's observable contract—such as saving a user or sending a notification. Verifying every internal helper call can make a test fail after a harmless refactor even though the externally visible behavior is still correct.
+
 ---
 
 ### 2. `times(n)` and `never()`
+
+> **Timestamp:** `times(n)` [08:43](https://www.youtube.com/watch?v=wasBpF2fhwg&t=523s) · `never()` [08:55](https://www.youtube.com/watch?v=wasBpF2fhwg&t=535s)
 
 ```java
 @Test
@@ -112,6 +153,8 @@ void deleteInactiveUser_neverCallsSave() {
 ---
 
 ### 3. `atLeastOnce()`, `atLeast(n)`, `atMostOnce()`, `atMost(n)`, `only()`
+
+> **Timestamp:** `atLeast...` [09:24](https://www.youtube.com/watch?v=wasBpF2fhwg&t=564s) · `atMost...` [10:21](https://www.youtube.com/watch?v=wasBpF2fhwg&t=621s) · `only()` [10:41](https://www.youtube.com/watch?v=wasBpF2fhwg&t=641s)
 
 ```java
 @Test
@@ -157,6 +200,8 @@ void register_onlyInteractionWithRepositoryIsSave() {
 ---
 
 ### 4. Argument Matching
+
+> **Timestamp:** [10:39](https://www.youtube.com/watch?v=wasBpF2fhwg&t=639s) · Custom validation: [12:19](https://www.youtube.com/watch?v=wasBpF2fhwg&t=739s) · Cross-parameter validation: [19:20](https://www.youtube.com/watch?v=wasBpF2fhwg&t=1160s)
 
 Sometimes you don't care about verifying an exact value — you care about the *shape* of what was passed, or you want to capture it to assert on afterward.
 
@@ -235,9 +280,17 @@ void chargeCard_capturesAmountAndCurrency() {
 }
 ```
 
+#### Added by ChatGPT — captor limitations
+
+An `ArgumentCaptor` captures the argument reference that was passed to the mock; it does not automatically create a deep copy. If production code mutates that same object later, the captured object can reflect the mutated state. Capture immutable values where possible, or take a defensive snapshot when mutation is part of the scenario.
+
+Captors are clearest during verification. Although `captor.capture()` can technically appear while stubbing, doing so can reduce readability and may leave the captor without a value if the stub is never invoked.
+
 ---
 
 ### 5. Order — `InOrder`
+
+> **Timestamp:** [21:32](https://www.youtube.com/watch?v=wasBpF2fhwg&t=1292s) · Example: [24:06](https://www.youtube.com/watch?v=wasBpF2fhwg&t=1446s) · `InOrder` implementation: [25:57](https://www.youtube.com/watch?v=wasBpF2fhwg&t=1557s)
 
 By default, `verify()` calls don't care about sequence — each one just checks its own invocation independently. When the **order of calls matters** (e.g. you must save before you notify), use `InOrder`.
 
@@ -273,9 +326,15 @@ void testInOrderMultipleMocks() {
 
 `inOrder(...)` takes the mocks whose relative call order you want to check, and every `inOrder.verify(...)` after that must match calls in the sequence they were declared. If the real execution order doesn't match — even if each individual call happened the right number of times — the verification fails.
 
+#### Added by ChatGPT
+
+`InOrder` verifies the relative order of the interactions you ask it to verify. It does not automatically mean that no other calls occurred. If extra calls must also be forbidden, finish the required ordered checks and then explicitly verify that no relevant interactions remain.
+
 ---
 
 ### 6. `verifyNoInteractions()` and `verifyNoMoreInteractions()`
+
+> **Timestamp:** `verifyNoInteractions()` [30:25](https://www.youtube.com/watch?v=wasBpF2fhwg&t=1825s) · `verifyNoMoreInteractions()` [32:34](https://www.youtube.com/watch?v=wasBpF2fhwg&t=1954s)
 
 ```java
 @Test
@@ -300,9 +359,15 @@ void testVerifyNoMoreInteractions() {
 
 > Order matters here: `verifyNoMoreInteractions()` only looks at what's still "unverified" at the point it runs, so it should come *after* your other `verify()` calls for that mock, not before.
 
+#### Added by ChatGPT
+
+Use `verifyNoMoreInteractions()` selectively. It is valuable when unexpected dependency calls would be a real bug, but applying it to every mock can over-specify implementation details and make otherwise safe refactoring unnecessarily difficult.
+
 ---
 
 ### 7. `timeout(ms)` and `after(ms)` — Verifying Async Behavior
+
+> **Timestamp:** [34:39](https://www.youtube.com/watch?v=wasBpF2fhwg&t=2079s) · Immediate-verification problem: [36:27](https://www.youtube.com/watch?v=wasBpF2fhwg&t=2187s) · `timeout()` versus `after()`: [39:00](https://www.youtube.com/watch?v=wasBpF2fhwg&t=2340s)
 
 Both of these exist for the same problem: **the method under test kicks off work on a background thread**, and by the time your `verify()` line runs, that background work may not have finished yet — so a plain `verify()` would fail, not because the call never happens, but because it just hasn't happened *yet*.
 
@@ -371,6 +436,10 @@ class AsyncOrderServiceTest {
 `placeOrder()` returns almost immediately — `orderRepo.save(order)` takes ~2ms and runs synchronously, but `emailService.sendMail(order)` runs on a background thread after a ~100ms delay. If the test called `verify(emailService).sendMail(order)` right after `placeOrder()` returns (at ~3ms), the email call hasn't happened yet and the verification would fail — not because the code is broken, but because the test didn't wait long enough.
 
 `timeout(500)` fixes this by **polling**: it repeatedly checks for the expected invocation, up to a maximum wait of 500ms, and returns **as soon as** the call is detected — it doesn't necessarily wait the full 500ms. This makes the test both correct and fast (it typically finishes around the ~100ms mark, not the full timeout).
+
+#### Added by ChatGPT — making async tests reliable
+
+Mockito's timeout modes wait for an invocation, but they do not make the background operation itself deterministic or shut down its executor. When you control the production API, returning a `CompletableFuture` or exposing another completion signal usually lets the test wait for completion directly. Also close test-created executors in teardown so their threads cannot leak into later tests.
 
 **Why `after(500)` is different:**
 

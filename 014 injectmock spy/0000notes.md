@@ -1,11 +1,5 @@
 ### `@Mock`, `@InjectMocks` (JUnit & Mockito Integration)
 
-```
-Different ways to create Mock/Spy objects:
-
-    Manually        Annotation Without Extension        Annotation With Extension
-                                                                (Recommended)
-```
 
 ![alt text](image.png)
 
@@ -13,7 +7,47 @@ Different ways to create Mock/Spy objects:
 
 ---
 
+### Video Topic Index
+
+- [00:29 — Three ways to create mock/spy objects](https://www.youtube.com/watch?v=7hshy19_Zl4&t=29s)
+- [01:06 — Manual mock and spy creation](https://www.youtube.com/watch?v=7hshy19_Zl4&t=66s)
+- [03:13 — Where to create mocks in the JUnit lifecycle](https://www.youtube.com/watch?v=7hshy19_Zl4&t=193s)
+- [04:00 — Field initializer with `PER_METHOD` and `PER_CLASS`](https://www.youtube.com/watch?v=7hshy19_Zl4&t=240s)
+- [05:58 — Annotations without an extension](https://www.youtube.com/watch?v=7hshy19_Zl4&t=358s)
+- [08:35 — `@Mock`](https://www.youtube.com/watch?v=7hshy19_Zl4&t=515s)
+- [09:19 — `@InjectMocks`](https://www.youtube.com/watch?v=7hshy19_Zl4&t=559s)
+- [10:50 — `openMocks()` and `AutoCloseable`](https://www.youtube.com/watch?v=7hshy19_Zl4&t=650s)
+- [11:18 — Annotations are initially only metadata; fields remain `null`](https://www.youtube.com/watch?v=7hshy19_Zl4&t=678s)
+- [12:23 — Reflection scan performed by `openMocks(this)`](https://www.youtube.com/watch?v=7hshy19_Zl4&t=743s)
+- [12:59 — Creation of `@Mock` and `@Spy` objects](https://www.youtube.com/watch?v=7hshy19_Zl4&t=779s)
+- [13:39 — Creation and injection of the `@InjectMocks` object](https://www.youtube.com/watch?v=7hshy19_Zl4&t=819s)
+- [14:37 — Internal state and `ThreadLocal`](https://www.youtube.com/watch?v=7hshy19_Zl4&t=877s)
+- [15:18 — Why the `AutoCloseable` resource must be closed](https://www.youtube.com/watch?v=7hshy19_Zl4&t=918s)
+- [17:37 — Drawbacks of annotations without an extension](https://www.youtube.com/watch?v=7hshy19_Zl4&t=1057s)
+- [21:16 — `@InjectMocks` injection strategies](https://www.youtube.com/watch?v=7hshy19_Zl4&t=1276s)
+- [23:32 — Constructor, setter, and field injection priority](https://www.youtube.com/watch?v=7hshy19_Zl4&t=1412s)
+- [24:28 — Constructor injection rules](https://www.youtube.com/watch?v=7hshy19_Zl4&t=1468s)
+- [26:22 — Constructor use case 1: exact match](https://www.youtube.com/watch?v=7hshy19_Zl4&t=1582s)
+- [27:59 — Constructor use case 2: missing object mock becomes `null`](https://www.youtube.com/watch?v=7hshy19_Zl4&t=1679s)
+- [29:34 — Constructor use case 3: unresolved primitive and fallback](https://www.youtube.com/watch?v=7hshy19_Zl4&t=1774s)
+- [31:36 — Setter injection](https://www.youtube.com/watch?v=7hshy19_Zl4&t=1896s)
+- [33:28 — Successful parameterized constructor stops later injection phases](https://www.youtube.com/watch?v=7hshy19_Zl4&t=2008s)
+- [34:38 — Setter naming convention](https://www.youtube.com/watch?v=7hshy19_Zl4&t=2078s)
+- [35:07 — Setter must have exactly one argument](https://www.youtube.com/watch?v=7hshy19_Zl4&t=2107s)
+- [35:35 — Setter injection and `final` fields](https://www.youtube.com/watch?v=7hshy19_Zl4&t=2135s)
+- [36:23 — Field injection through reflection](https://www.youtube.com/watch?v=7hshy19_Zl4&t=2183s)
+- [38:08 — Mixed setter and field injection example](https://www.youtube.com/watch?v=7hshy19_Zl4&t=2288s)
+- [40:21 — Annotation with `MockitoExtension` (recommended)](https://www.youtube.com/watch?v=7hshy19_Zl4&t=2421s)
+- [41:59 — How `MockitoExtension` hooks into JUnit Jupiter](https://www.youtube.com/watch?v=7hshy19_Zl4&t=2519s)
+- [42:57 — `mockito-junit-jupiter` dependency](https://www.youtube.com/watch?v=7hshy19_Zl4&t=2577s)
+- [43:30 — Extension `beforeEach` initialization](https://www.youtube.com/watch?v=7hshy19_Zl4&t=2610s)
+- [44:39 — Extension `afterEach` cleanup](https://www.youtube.com/watch?v=7hshy19_Zl4&t=2679s)
+
+---
+
 ### 1. Manually
+
+> **Video timestamp:** [01:06](https://www.youtube.com/watch?v=7hshy19_Zl4&t=66s)
 
 **Mock:**
 
@@ -71,6 +105,8 @@ All we need is the `mockito-core` library:
 ---
 
 ### Where Should We Create the Mock/Spy Object? (JUnit Lifecycle + Manual Creation)
+
+> **Video timestamp:** [03:13](https://www.youtube.com/watch?v=7hshy19_Zl4&t=193s)
 
 **1. In `@BeforeEach` method — Safe**
 
@@ -153,6 +189,8 @@ Not safe, because the **test class instance is created only once** and used by a
 ---
 
 ### 2. Annotation Without Extension
+
+> **Video timestamp:** [05:58](https://www.youtube.com/watch?v=7hshy19_Zl4&t=358s)
 
 ```java
 public class OrderService {
@@ -311,6 +349,8 @@ class OrderServiceTest {
 
 ### `@InjectMocks` Internals — How Are the Member Variables Set?
 
+> **Video timestamp:** [21:16](https://www.youtube.com/watch?v=7hshy19_Zl4&t=1276s)
+
 In Step 3 above: *"in the real object's member variables, set the mock objects which were created in Step 2"* — `service = new OrderService(gateway, repo)`.
 
 **What are the different ways to set the member variables, and what are the rules?**
@@ -323,6 +363,8 @@ In Step 3 above: *"in the real object's member variables, set the mock objects w
 
 ### 1. Constructor Injection
 
+> **Video timestamp:** [24:28](https://www.youtube.com/watch?v=7hshy19_Zl4&t=1468s)
+
 **Rules:**
 
 - Always pick the constructor with the **most parameters**.
@@ -331,6 +373,8 @@ In Step 3 above: *"in the real object's member variables, set the mock objects w
 - If not able to fill any parameter of the picked constructor, **fall back to the default constructor**.
 
 **Use case #1 — Only 1 constructor present: Exact Match**
+
+> **Video timestamp:** [26:22](https://www.youtube.com/watch?v=7hshy19_Zl4&t=1582s)
 
 ```java
 public class OrderService {
@@ -369,6 +413,8 @@ class OrderServiceTest {
 Internally it does: `service = new OrderService(gateway, repo)` — it found the constructor that has all the Mock object types available.
 
 **Use case #2 — More than 1 constructor present: able to resolve the dependencies**
+
+> **Video timestamp:** [27:59](https://www.youtube.com/watch?v=7hshy19_Zl4&t=1679s)
 
 ```java
 public class OrderService {
@@ -426,6 +472,8 @@ class OrderServiceTest {
 
 **Use case #3 — More than 1 constructor present: NOT able to resolve the dependencies**
 
+> **Video timestamp:** [29:34](https://www.youtube.com/watch?v=7hshy19_Zl4&t=1774s)
+
 ```java
 public class OrderService {
 
@@ -475,6 +523,8 @@ Examples of correct usage of @InjectMocks:
 ---
 
 ### 2. Setter Injection
+
+> **Video timestamp:** [31:36](https://www.youtube.com/watch?v=7hshy19_Zl4&t=1896s)
 
 **Rules:**
 
@@ -555,6 +605,8 @@ Even `private` fields are set (via reflection).
 
 ### 1. Annotation With Extension (Recommended)
 
+> **Video timestamp:** [40:21](https://www.youtube.com/watch?v=7hshy19_Zl4&t=2421s)
+
 It's similar to "Annotation Without Extension." The **only difference** is: we don't have to worry about `openMocks()`, closing the resource, or wiring into the JUnit lifecycle ourselves — **it's all managed by the Extension**.
 
 (If any doubts on how Extensions work internally, check the in-depth `005 extensions` notes/video in this JUnit5 series.)
@@ -590,6 +642,7 @@ public interface OrderRepository {
 
 ```java
 @ExtendWith(MockitoExtension.class)
+//this extension we add
 class OrderServiceTest {
 
     @Mock
@@ -651,7 +704,7 @@ public void beforeEach(final ExtensionContext context) {
                     .initMocks(testInstances.toArray())
                     .strictness(actualStrictness)
                     .logger(new MockitoSessionLoggerAdapter(Plugins.getMockitoLogger()))
-                    .startMocking();
+                    .startMocking();//start the mocking it openMocks()
     ...
 }
 ```
@@ -668,9 +721,58 @@ public void afterEach(ExtensionContext context) {
     ...
     context.getStore(MOCKITO)
             .remove(SESSION, MockitoSession.class)
-            .finishMocking(context.getExecutionException().orElse(null));
+            .finishMocking(context.getExecutionException()//here close() happens
+            .orElse(null));
     ...
 }
 ```
 
 > The **Constructor, Setter, and Field Injection rules and process are exactly the same** as "Annotation without Extension" — `MockitoExtension` just handles the JUnit lifecycle wiring (`openMocks`/`close`) for us automatically.
+
+---
+
+### Additional Point From the Video
+
+#### Successful Parameterized Constructor Injection Stops the Later Phases
+
+> **Video timestamp:** [33:28](https://www.youtube.com/watch?v=7hshy19_Zl4&t=2008s)
+
+If Mockito successfully invokes the selected parameterized constructor, it considers constructor injection complete. It does **not** continue to setter injection or field injection.
+
+This is also true when a missing object dependency was resolved by passing `null`:
+
+```java
+service = new OrderService(gateway, repo, null);
+```
+
+From Mockito's point of view, every constructor parameter was resolved:
+
+- available mock → pass that mock;
+- unavailable object mock → pass `null`.
+
+Therefore, Mockito does not later look for a setter or attempt field injection to replace that `null`. Setter and field injection are attempted only after Mockito creates the object through the default no-arg constructor.
+
+---
+
+### Explained by ChatGPT
+
+#### `@InjectMocks` Does Not Create a Mock of the Class Under Test
+
+`@Mock` creates fake dependency objects. In contrast, `@InjectMocks` normally creates a **real instance** of the class being tested and injects the available mocks into it.
+
+```java
+@Mock
+PaymentGateway gateway;       // mock dependency
+
+@Mock
+OrderRepository repo;         // mock dependency
+
+@InjectMocks
+OrderService service;         // real OrderService using the mocks above
+```
+
+This distinction is important: when `service.placeOrder(...)` is called, the real `OrderService` business logic executes. Only its `gateway` and `repo` collaborators are mocked.
+
+If `OrderService` itself were a plain mock, its real `placeOrder(...)` logic would not run, so the test would mostly verify behavior configured by the test itself rather than testing the class's implementation.
+
+Also, `@InjectMocks` is a convenience mechanism, not a full dependency-injection framework. Mockito tries constructor, setter, and field injection using the mocks available in the test; it does not build an entire application object graph or report every missing dependency as a configuration error.
